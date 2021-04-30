@@ -67,6 +67,15 @@ Modifies how Angular-specific annotations are emitted to improve tree-shaking. N
 When `true`, use [Tsickle](https://github.com/angular/tsickle) to annotate the emitted JavaScript with [JSDoc](https://jsdoc.app/) comments needed by the
 [Closure Compiler](https://github.com/google/closure-compiler). Default is `false`.
 
+### `compilationMode`
+
+Specifies the compilation mode to use. The following modes are available:
+
+- `'full'`: generates fully AOT-compiled code according to the version of Angular that is currently being used.
+- `'partial'`: generates code in a stable, but intermediate form suitable for a published library.
+
+The default value is `'full'`.
+
 ### `disableExpressionLowering`
 
 When `true` (the default), transforms code that is or could be used in an annotation, to allow it to be imported from template factory modules. See [metadata rewriting](guide/aot-compiler#metadata-rewriting) for more information.
@@ -123,7 +132,7 @@ to the generated flat module index instead of the library index file.
 
 Produces only one `.metadata.json` file, which contains all the metadata necessary
 for symbols exported from the library index. In the generated `.ngfactory.js` files, the flat
-module index is used to import symbols that includes both the public API from the library index
+module index is used to import symbols that include both the public API from the library index
 as well as shrowded internal symbols.
 
 By default the `.ts` file supplied in the `files` field is assumed to be the library index.

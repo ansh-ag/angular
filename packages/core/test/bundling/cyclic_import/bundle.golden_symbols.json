@@ -48,6 +48,9 @@
     "name": "SimpleChange"
   },
   {
+    "name": "TRACKED_LVIEWS"
+  },
+  {
     "name": "TriggerComponent"
   },
   {
@@ -255,6 +258,9 @@
     "name": "isInlineTemplate"
   },
   {
+    "name": "isLView"
+  },
+  {
     "name": "isNodeMatchingSelector"
   },
   {
@@ -354,6 +360,9 @@
     "name": "setUpAttributes"
   },
   {
+    "name": "uniqueIdCounter"
+  },
+  {
     "name": "updateTransplantedViewCount"
   },
   {
@@ -367,6 +376,12 @@
   },
   {
     "name": "ɵɵdefineComponent"
+  },
+  {
+    "name": "ɵɵdefineInjector"
+  },
+  {
+    "name": "ɵɵdefineNgModule"
   },
   {
     "name": "ɵɵelementStart"

@@ -6,18 +6,21 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {APP_BASE_HREF, DOCUMENT, Location, ɵgetDOM as getDOM} from '@angular/common';
+import {APP_BASE_HREF, DOCUMENT, ɵgetDOM as getDOM} from '@angular/common';
 import {ApplicationRef, Component, CUSTOM_ELEMENTS_SCHEMA, destroyPlatform, NgModule} from '@angular/core';
 import {inject} from '@angular/core/testing';
 import {BrowserModule} from '@angular/platform-browser';
 import {platformBrowserDynamic} from '@angular/platform-browser-dynamic';
 import {NavigationEnd, Resolve, Router, RouterModule} from '@angular/router';
-import {filter, first} from 'rxjs/operators';
 
 describe('bootstrap', () => {
   if (isNode) return;
   let log: any[] = [];
   let testProviders: any[] = null!;
+
+  @Component({template: 'simple'})
+  class SimpleCmp {
+  }
 
   @Component({selector: 'test-app', template: 'root <router-outlet></router-outlet>'})
   class RootCmp {
@@ -369,7 +372,62 @@ describe('bootstrap', () => {
     done();
   });
 
-  function waitForNavigationToComplete(router: Router): Promise<any> {
-    return router.events.pipe(filter((e: any) => e instanceof NavigationEnd), first()).toPromise();
-  }
+  it('should cleanup "popstate" and "hashchange" listeners', async () => {
+    @NgModule({
+      imports: [BrowserModule, RouterModule.forRoot([])],
+      declarations: [RootCmp],
+      bootstrap: [RootCmp],
+      providers: testProviders,
+    })
+    class TestModule {
+    }
+
+    spyOn(window, 'addEventListener').and.callThrough();
+    spyOn(window, 'removeEventListener').and.callThrough();
+
+    const ngModuleRef = await platformBrowserDynamic().bootstrapModule(TestModule);
+    ngModuleRef.destroy();
+
+    expect(window.addEventListener).toHaveBeenCalledTimes(2);
+
+    expect(window.addEventListener)
+        .toHaveBeenCalledWith('popstate', jasmine.any(Function), jasmine.any(Boolean));
+    expect(window.addEventListener)
+        .toHaveBeenCalledWith('hashchange', jasmine.any(Function), jasmine.any(Boolean));
+
+    expect(window.removeEventListener).toHaveBeenCalledWith('popstate', jasmine.any(Function));
+    expect(window.removeEventListener).toHaveBeenCalledWith('hashchange', jasmine.any(Function));
+  });
+
+  it('can schedule a navigation from the NavigationEnd event #37460', async (done) => {
+    @NgModule({
+      imports: [
+        BrowserModule,
+        RouterModule.forRoot(
+            [
+              {path: 'a', component: SimpleCmp},
+              {path: 'b', component: SimpleCmp},
+            ],
+            )
+      ],
+      declarations: [RootCmp, SimpleCmp],
+      bootstrap: [RootCmp],
+      providers: [...testProviders],
+    })
+    class TestModule {
+    }
+
+    const res = await platformBrowserDynamic([]).bootstrapModule(TestModule);
+    const router = res.injector.get(Router);
+    router.events.subscribe(() => {
+      expect(router.getCurrentNavigation()?.id).toBeDefined();
+    });
+    router.events.subscribe(async (e) => {
+      if (e instanceof NavigationEnd && e.url === '/b') {
+        await router.navigate(['a']);
+        done();
+      }
+    });
+    await router.navigateByUrl('/b');
+  });
 });

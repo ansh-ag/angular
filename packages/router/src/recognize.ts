@@ -67,7 +67,7 @@ export class Recognizer {
     // Use Object.freeze to prevent readers of the Router state from modifying it outside of a
     // navigation, resulting in the router being out of sync with the browser.
     const root = new ActivatedRouteSnapshot(
-        [], Object.freeze({}), Object.freeze({...this.urlTree.queryParams}), this.urlTree.fragment!,
+        [], Object.freeze({}), Object.freeze({...this.urlTree.queryParams}), this.urlTree.fragment,
         {}, PRIMARY_OUTLET, this.rootComponentType, null, this.urlTree.root, -1, {});
 
     const rootNode = new TreeNode<ActivatedRouteSnapshot>(root, children);
@@ -160,7 +160,7 @@ export class Recognizer {
     if (route.path === '**') {
       const params = segments.length > 0 ? last(segments)!.parameters : {};
       snapshot = new ActivatedRouteSnapshot(
-          segments, params, Object.freeze({...this.urlTree.queryParams}), this.urlTree.fragment!,
+          segments, params, Object.freeze({...this.urlTree.queryParams}), this.urlTree.fragment,
           getData(route), getOutlet(route), route.component!, route,
           getSourceSegmentGroup(rawSegment), getPathIndexShift(rawSegment) + segments.length,
           getResolve(route));
@@ -174,7 +174,7 @@ export class Recognizer {
 
       snapshot = new ActivatedRouteSnapshot(
           consumedSegments, result.parameters, Object.freeze({...this.urlTree.queryParams}),
-          this.urlTree.fragment!, getData(route), getOutlet(route), route.component!, route,
+          this.urlTree.fragment, getData(route), getOutlet(route), route.component!, route,
           getSourceSegmentGroup(rawSegment),
           getPathIndexShift(rawSegment) + consumedSegments.length, getResolve(route));
     }
@@ -251,6 +251,8 @@ function hasEmptyPathConfig(node: TreeNode<ActivatedRouteSnapshot>) {
 function mergeEmptyPathMatches(nodes: Array<TreeNode<ActivatedRouteSnapshot>>):
     Array<TreeNode<ActivatedRouteSnapshot>> {
   const result: Array<TreeNode<ActivatedRouteSnapshot>> = [];
+  // The set of nodes which contain children that were merged from two duplicate empty path nodes.
+  const mergedNodes: Set<TreeNode<ActivatedRouteSnapshot>> = new Set();
 
   for (const node of nodes) {
     if (!hasEmptyPathConfig(node)) {
@@ -262,11 +264,20 @@ function mergeEmptyPathMatches(nodes: Array<TreeNode<ActivatedRouteSnapshot>>):
         result.find(resultNode => node.value.routeConfig === resultNode.value.routeConfig);
     if (duplicateEmptyPathNode !== undefined) {
       duplicateEmptyPathNode.children.push(...node.children);
+      mergedNodes.add(duplicateEmptyPathNode);
     } else {
       result.push(node);
     }
   }
-  return result;
+  // For each node which has children from multiple sources, we need to recompute a new `TreeNode`
+  // by also merging those children. This is necessary when there are multiple empty path configs in
+  // a row. Put another way: whenever we combine children of two nodes, we need to also check if any
+  // of those children can be combined into a single node as well.
+  for (const mergedNode of mergedNodes) {
+    const mergedChildren = mergeEmptyPathMatches(mergedNode.children);
+    result.push(new TreeNode(mergedNode.value, mergedChildren));
+  }
+  return result.filter(n => !mergedNodes.has(n));
 }
 
 function checkOutletNameUniqueness(nodes: TreeNode<ActivatedRouteSnapshot>[]): void {

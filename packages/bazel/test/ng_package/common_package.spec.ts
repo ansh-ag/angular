@@ -7,6 +7,7 @@
  */
 
 import {obsoleteInIvy} from '@angular/private/testing';
+import {runfiles} from '@bazel/runfiles';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as shx from 'shelljs';
@@ -14,7 +15,7 @@ import * as shx from 'shelljs';
 // Resolve the "npm_package" directory by using the runfile resolution. Note that we need to
 // resolve the "package.json" of the package since otherwise NodeJS would resolve the "main"
 // file, which is not necessarily at the root of the "npm_package".
-shx.cd(path.dirname(require.resolve('angular/packages/common/npm_package/package.json')));
+shx.cd(path.dirname(runfiles.resolve('angular/packages/common/npm_package/package.json')));
 
 describe('@angular/common ng_package', () => {
   describe('should have the locales files', () => {
@@ -39,24 +40,14 @@ describe('@angular/common ng_package', () => {
     expect(shx.ls('-R', 'bundles').stdout.split('\n').filter(n => !!n).sort()).toEqual([
       'common-http-testing.umd.js',
       'common-http-testing.umd.js.map',
-      'common-http-testing.umd.min.js',
-      'common-http-testing.umd.min.js.map',
       'common-http.umd.js',
       'common-http.umd.js.map',
-      'common-http.umd.min.js',
-      'common-http.umd.min.js.map',
       'common-testing.umd.js',
       'common-testing.umd.js.map',
-      'common-testing.umd.min.js',
-      'common-testing.umd.min.js.map',
       'common-upgrade.umd.js',
       'common-upgrade.umd.js.map',
-      'common-upgrade.umd.min.js',
-      'common-upgrade.umd.min.js.map',
       'common.umd.js',
       'common.umd.js.map',
-      'common.umd.min.js',
-      'common.umd.min.js.map',
     ]);
   });
 

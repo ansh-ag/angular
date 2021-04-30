@@ -55,6 +55,10 @@
       "title": "Getting Started",
       "tooltip": "Set up your environment and learn basic concepts",
       "children": [
+        { "url": "guide/what-is-angular",
+          "title": "What is Angular?",
+          "tooltip": "A brief description of the Angular platform."
+        },
         {
           "title": "Try it",
           "tooltip": "Examine and work with a ready-made sample app, with no setup.",
@@ -454,6 +458,11 @@
           "tooltip": "Use property binding efficiently."
         },
         {
+          "url": "guide/lazy-loading-ngmodules",
+          "title": "Lazy Loading Feature Modules",
+          "tooltip": "Lazy load modules to speed up your apps."
+        },
+        {
           "url": "guide/lightweight-injection-tokens",
           "title": "Lightweight Injection Tokens for Libraries",
           "tooltip": "Optimize client app size by designing library services with lightweight injection tokens."
@@ -563,7 +572,7 @@
             },
             {
               "url": "tutorial/toh-pt5",
-              "title": "5. Add In-app Navigation",
+              "title": "5. Add Navigation",
               "tooltip": "Part 5: Add the Angular router and navigate among the views."
             },
             {
@@ -830,11 +839,6 @@
                   "tooltip": "Creating singleton services."
                 },
                 {
-                  "url": "guide/lazy-loading-ngmodules",
-                  "title": "Lazy Loading Feature Modules",
-                  "tooltip": "Lazy load modules to speed up your apps."
-                },
-                {
                   "url": "guide/sharing-ngmodules",
                   "title": "Sharing NgModules",
                   "tooltip": "Share NgModules to streamline your apps."
@@ -955,6 +959,32 @@
               "url": "guide/styleguide",
               "title": "Coding Style Guide",
               "tooltip": "Guidelines for writing Angular code."
+            }
+          ]
+        },
+        {
+          "title": "Content Contributor's Guide",
+          "tooltip": "Describes how to contribute to the Angular documentation.",
+          "children": [
+            {
+              "url": "guide/contributors-guide-overview",
+              "title": "Overview",
+              "tooltip": "Provides an overview of how to contribute to Angular's documentation."
+            },
+            {
+              "url": "guide/reviewing-content",
+              "title": "Reviewing content",
+              "tooltip": "Keep Angular content up-to-date by reviewing topics for accuracy."
+            },
+            {
+              "url": "guide/updating-search-keywords",
+              "title": "Updating search keywords",
+              "tooltip": "Help users find the content they need by adding additional search keywords."
+            },
+            {
+              "url": "guide/updating-content-github-ui",
+              "title": "Updating content using GitHub UI",
+              "tooltip": "Update topics in the browser through the GitHub user interface."
             },
             {
               "url": "guide/docs-style-guide",

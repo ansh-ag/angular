@@ -2,8 +2,8 @@
   "cli-hello-world": {
     "master": {
       "uncompressed": {
-        "runtime-es2015": 1485,
-        "main-es2015": 140871,
+        "runtime-es2015": 1170,
+        "main-es2015": 138718,
         "polyfills-es2015": 36964
       }
     }
@@ -11,7 +11,7 @@
   "cli-hello-world-ivy-minimal": {
     "master": {
       "uncompressed": {
-        "runtime-es2015": 1485,
+        "runtime-es2015": 1190,
         "main-es2015": 17597,
         "polyfills-es2015": 36709
       }
@@ -20,8 +20,8 @@
   "cli-hello-world-ivy-compat": {
     "master": {
       "uncompressed": {
-        "runtime-es2015": 1485,
-        "main-es2015": 146680,
+        "runtime-es2015": 1190,
+        "main-es2015": 144579,
         "polyfills-es2015": 36964
       }
     }
@@ -29,8 +29,8 @@
   "cli-hello-world-ivy-i18n": {
     "master": {
       "uncompressed": {
-        "runtime-es2015": 1485,
-        "main-es2015": 137236,
+        "runtime-es2015": 1190,
+        "main-es2015": 137087,
         "polyfills-es2015": 37641
       }
     }
@@ -38,20 +38,19 @@
   "cli-hello-world-lazy": {
     "master": {
       "uncompressed": {
-        "runtime-es2015": 2285,
-        "main-es2015": 241202,
-        "polyfills-es2015": 36709,
-        "5-es2015": 745
+        "runtime-es2015": 2850,
+        "main-es2015": 295741,
+        "polyfills-es2015": 36975,
+        "src_app_lazy_lazy_module_ts-es2015": 825
       }
     }
   },
-  "cli-hello-world-lazy-rollup": {
+  "forms": {
     "master": {
       "uncompressed": {
-        "runtime-es2015": 2289,
-        "main-es2015": 217591,
-        "polyfills-es2015": 36723,
-        "5-es2015": 781
+        "runtime-es2015": 1150,
+        "main-es2015": 162346,
+        "polyfills-es2015": 36975
       }
     }
   },

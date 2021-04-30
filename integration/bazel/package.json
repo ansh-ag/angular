@@ -23,11 +23,11 @@
     "@angular/compiler": "file:../../dist/packages-dist/compiler",
     "@angular/compiler-cli": "file:../../dist/packages-dist/compiler-cli",
     "@bazel/bazelisk": "file:../../node_modules/@bazel/bazelisk",
-    "@bazel/protractor": "3.1.0",
-    "@bazel/rollup": "3.1.0",
-    "@bazel/concatjs": "3.1.0",
-    "@bazel/terser": "3.1.0",
-    "@bazel/typescript": "3.1.0",
+    "@bazel/protractor": "3.2.1",
+    "@bazel/rollup": "3.2.1",
+    "@bazel/concatjs": "3.2.1",
+    "@bazel/terser": "3.2.1",
+    "@bazel/typescript": "3.2.1",
     "@types/jasmine": "2.8.8",
     "@types/node": "^12.11.1",
     "jasmine": "^3.5.0",
@@ -38,7 +38,7 @@
     "karma-jasmine": "2.0.1",
     "karma-requirejs": "1.1.0",
     "karma-sourcemap-loader": "0.3.7",
-    "protractor": "5.4.2",
+    "protractor": "file:../../node_modules/protractor",
     "requirejs": "2.3.6",
     "rollup": "1.27.5",
     "rollup-plugin-commonjs": "10.1.0",
@@ -46,6 +46,10 @@
     "rollup-plugin-sourcemaps": "0.4.2",
     "terser": "4.4.0",
     "typescript": "file:../../node_modules/typescript"
+  },
+  "//resolutions-comment": "Ensure a single version of webdriver-manager which comes from root node_modules that has already run webdriver-manager update",
+  "resolutions": {
+    "**/webdriver-manager": "file:../../node_modules/webdriver-manager"
   },
   "scripts": {
     "test": "bazelisk build ... --noshow_progress && bazelisk test ...",

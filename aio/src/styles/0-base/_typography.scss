@@ -34,14 +34,7 @@ h2 {
   margin-top: 4rem;
   padding-top: 4rem;
 
-  .page-about &,
-  .page-api &,
-  .page-contribute &,
-  .page-events &,
-  .page-features &,
-  .page-home &,
-  .page-presskit &,
-  .page-resources & {
+  @include marketing-pages($extraSelectors: ('.page-api'), $nestParentSelector: true) {
     border-top: 0;
     margin-top: 2rem;
     padding-top: 0;
@@ -94,12 +87,12 @@ h6 {
 p,
 ol,
 ul,
-ol,
 li,
 input,
 a {
   @include font-size(16);
   @include line-height(32);
+  font-family: inherit;
   font-weight: 400;
   color: $darkgray;
 
@@ -205,37 +198,34 @@ code {
   }
 }
 
-// The following css rule adds an icon to external links in the docs area.
-// The following `folder-*` classes are applied to the `doc-viewer`component when it is displaying docs for these areas of the documentation.
-// We add the icon to all external links which are identified as absolute links (those that start with `http` or https`).
-// For more info see PR #36601
+// The following css rule adds an icon to external links in the docs area, based on the classes that are applied to the
+// `doc-viewer` component when it is displaying docs for the different areas of the documentation.
+// We add the icon to all external links which are identified as absolute links (those that start with `http:` or https:`).
+// For more info see PR #36601.
+@include docs-pages {
+  aio-doc-viewer {
+    // The docs-viewer also contain links to GitHub (e.g. the "edit this page" icon) identified with
+    // the `.github-links` class. We don't want to add the external link icon to these links.
+    :not(.github-links) {
+      > a {
+        &[href^="http:"],
+        &[href^="https:"] {
+          display: inline-flex;
+          padding-right: calc(1em + 0.25rem);
+          position: relative;
 
-.folder-api,
-.folder-cli,
-.folder-docs,
-.folder-guide,
-.folder-start,
-.folder-tutorial {
-  aio-doc-viewer{
-    a {
-      &[href^="http:"]::after,
-      &[href^="https:"]::after {
-        font-family: "Material Icons";
-        content: "open_in_new";
-        margin-left: 2px;
-        position: relative;
-        @include line-height(24);
-        vertical-align: middle;
-      }
-    }
-
-    // The docs-viewer also contain links to GitHub (e.g. the edit this page icon) identified with `.github-links` class.
-    // We don't want to add the external link icon to these links, so we hide them.
-    .github-links a {
-      &[href^="http:"]::after,
-      &[href^="https:"]::after {
-        display: none;
+          &::after {
+            content: "open_in_new";
+            font-family: "Material Icons";
+            position: absolute;
+            right: 0;
+          }
+        }
       }
     }
   }
+}
+
+.error-text {
+  color: $brightred;
 }

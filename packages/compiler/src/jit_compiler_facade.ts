@@ -7,20 +7,20 @@
  */
 
 
-import {CompilerFacade, CoreEnvironment, ExportedCompilerFacade, OpaqueValue, R3ComponentMetadataFacade, R3DeclareComponentFacade, R3DeclareDirectiveFacade, R3DeclarePipeFacade, R3DeclareQueryMetadataFacade, R3DependencyMetadataFacade, R3DirectiveMetadataFacade, R3FactoryDefMetadataFacade, R3InjectableMetadataFacade, R3InjectorMetadataFacade, R3NgModuleMetadataFacade, R3PipeMetadataFacade, R3QueryMetadataFacade, StringMap, StringMapWithRename} from './compiler_facade_interface';
+import {CompilerFacade, CoreEnvironment, ExportedCompilerFacade, OpaqueValue, R3ComponentMetadataFacade, R3DeclareComponentFacade, R3DeclareDependencyMetadataFacade, R3DeclareDirectiveFacade, R3DeclareFactoryFacade, R3DeclareInjectableFacade, R3DeclareInjectorFacade, R3DeclareNgModuleFacade, R3DeclarePipeFacade, R3DeclareQueryMetadataFacade, R3DeclareUsedDirectiveFacade, R3DependencyMetadataFacade, R3DirectiveMetadataFacade, R3FactoryDefMetadataFacade, R3InjectableMetadataFacade, R3InjectorMetadataFacade, R3NgModuleMetadataFacade, R3PipeMetadataFacade, R3QueryMetadataFacade, StringMap, StringMapWithRename} from './compiler_facade_interface';
 import {ConstantPool} from './constant_pool';
-import {ChangeDetectionStrategy, HostBinding, HostListener, Input, Output, Type, ViewEncapsulation} from './core';
-import {Identifiers} from './identifiers';
-import {compileInjectable} from './injectable_compiler_2';
+import {ChangeDetectionStrategy, HostBinding, HostListener, Input, Output, ViewEncapsulation} from './core';
+import {compileInjectable, createR3ProviderExpression, R3ProviderExpression} from './injectable_compiler_2';
 import {DEFAULT_INTERPOLATION_CONFIG, InterpolationConfig} from './ml_parser/interpolation_config';
-import {DeclareVarStmt, Expression, LiteralExpr, Statement, StmtModifier, WrappedNodeExpr} from './output/output_ast';
+import {DeclareVarStmt, Expression, literal, LiteralExpr, Statement, StmtModifier, WrappedNodeExpr} from './output/output_ast';
 import {JitEvaluator} from './output/output_jit';
 import {ParseError, ParseSourceSpan, r3JitTypeSourceSpan} from './parse_util';
-import {compileFactoryFunction, R3DependencyMetadata, R3FactoryTarget, R3ResolvedDependencyType} from './render3/r3_factory';
+import {compileFactoryFunction, FactoryTarget, R3DependencyMetadata} from './render3/r3_factory';
+import {compileInjector, R3InjectorMetadata} from './render3/r3_injector_compiler';
 import {R3JitReflector} from './render3/r3_jit';
-import {compileInjector, compileNgModule, R3InjectorMetadata, R3NgModuleMetadata} from './render3/r3_module_compiler';
+import {compileNgModule, compileNgModuleDeclarationExpression, R3NgModuleMetadata} from './render3/r3_module_compiler';
 import {compilePipeFromMetadata, R3PipeMetadata} from './render3/r3_pipe_compiler';
-import {getSafePropertyAccessString, R3Reference} from './render3/util';
+import {getSafePropertyAccessString, wrapReference} from './render3/util';
 import {DeclarationListEmitMode, R3ComponentMetadata, R3DirectiveMetadata, R3HostMetadata, R3QueryMetadata, R3UsedDirectiveMetadata} from './render3/view/api';
 import {compileComponentFromMetadata, compileDirectiveFromMetadata, ParsedHostBindings, parseHostBindings, verifyHostBindings} from './render3/view/compiler';
 import {makeBindingParser, parseTemplate} from './render3/view/template';
@@ -28,8 +28,7 @@ import {ResourceLoader} from './resource_loader';
 import {DomElementSchemaRegistry} from './schema/dom_element_schema_registry';
 
 export class CompilerFacadeImpl implements CompilerFacade {
-  R3ResolvedDependencyType = R3ResolvedDependencyType as any;
-  R3FactoryTarget = R3FactoryTarget as any;
+  FactoryTarget = FactoryTarget as any;
   ResourceLoader = ResourceLoader;
   private elementSchemaRegistry = new DomElementSchemaRegistry();
 
@@ -41,8 +40,8 @@ export class CompilerFacadeImpl implements CompilerFacade {
       name: facade.name,
       type: wrapReference(facade.type),
       internalType: new WrappedNodeExpr(facade.type),
-      typeArgumentCount: facade.typeArgumentCount,
-      deps: convertR3DependencyMetadataArray(facade.deps),
+      typeArgumentCount: 0,
+      deps: null,
       pipeName: facade.pipeName,
       pure: facade.pure,
     };
@@ -54,24 +53,48 @@ export class CompilerFacadeImpl implements CompilerFacade {
       angularCoreEnv: CoreEnvironment, sourceMapUrl: string,
       declaration: R3DeclarePipeFacade): any {
     const meta = convertDeclarePipeFacadeToMetadata(declaration);
-    return compilePipeFromMetadata(meta);
+    const res = compilePipeFromMetadata(meta);
+    return this.jitExpression(res.expression, angularCoreEnv, sourceMapUrl, []);
   }
 
   compileInjectable(
       angularCoreEnv: CoreEnvironment, sourceMapUrl: string,
       facade: R3InjectableMetadataFacade): any {
-    const {expression, statements} = compileInjectable({
-      name: facade.name,
-      type: wrapReference(facade.type),
-      internalType: new WrappedNodeExpr(facade.type),
-      typeArgumentCount: facade.typeArgumentCount,
-      providedIn: computeProvidedIn(facade.providedIn),
-      useClass: wrapExpression(facade, USE_CLASS),
-      useFactory: wrapExpression(facade, USE_FACTORY),
-      useValue: wrapExpression(facade, USE_VALUE),
-      useExisting: wrapExpression(facade, USE_EXISTING),
-      userDeps: convertR3DependencyMetadataArray(facade.userDeps) || undefined,
-    });
+    const {expression, statements} = compileInjectable(
+        {
+          name: facade.name,
+          type: wrapReference(facade.type),
+          internalType: new WrappedNodeExpr(facade.type),
+          typeArgumentCount: facade.typeArgumentCount,
+          providedIn: computeProvidedIn(facade.providedIn),
+          useClass: convertToProviderExpression(facade, USE_CLASS),
+          useFactory: wrapExpression(facade, USE_FACTORY),
+          useValue: convertToProviderExpression(facade, USE_VALUE),
+          useExisting: convertToProviderExpression(facade, USE_EXISTING),
+          deps: facade.deps?.map(convertR3DependencyMetadata),
+        },
+        /* resolveForwardRefs */ true);
+
+    return this.jitExpression(expression, angularCoreEnv, sourceMapUrl, statements);
+  }
+
+  compileInjectableDeclaration(
+      angularCoreEnv: CoreEnvironment, sourceMapUrl: string,
+      facade: R3DeclareInjectableFacade): any {
+    const {expression, statements} = compileInjectable(
+        {
+          name: facade.type.name,
+          type: wrapReference(facade.type),
+          internalType: new WrappedNodeExpr(facade.type),
+          typeArgumentCount: 0,
+          providedIn: computeProvidedIn(facade.providedIn),
+          useClass: convertToProviderExpression(facade, USE_CLASS),
+          useFactory: wrapExpression(facade, USE_FACTORY),
+          useValue: convertToProviderExpression(facade, USE_VALUE),
+          useExisting: convertToProviderExpression(facade, USE_EXISTING),
+          deps: facade.deps?.map(convertR3DeclareDependencyMetadata),
+        },
+        /* resolveForwardRefs */ true);
 
     return this.jitExpression(expression, angularCoreEnv, sourceMapUrl, statements);
   }
@@ -83,12 +106,19 @@ export class CompilerFacadeImpl implements CompilerFacade {
       name: facade.name,
       type: wrapReference(facade.type),
       internalType: new WrappedNodeExpr(facade.type),
-      deps: convertR3DependencyMetadataArray(facade.deps),
       providers: new WrappedNodeExpr(facade.providers),
       imports: facade.imports.map(i => new WrappedNodeExpr(i)),
     };
     const res = compileInjector(meta);
-    return this.jitExpression(res.expression, angularCoreEnv, sourceMapUrl, res.statements);
+    return this.jitExpression(res.expression, angularCoreEnv, sourceMapUrl, []);
+  }
+
+  compileInjectorDeclaration(
+      angularCoreEnv: CoreEnvironment, sourceMapUrl: string,
+      declaration: R3DeclareInjectorFacade): any {
+    const meta = convertDeclareInjectorFacadeToMetadata(declaration);
+    const res = compileInjector(meta);
+    return this.jitExpression(res.expression, angularCoreEnv, sourceMapUrl, []);
   }
 
   compileNgModule(
@@ -109,6 +139,13 @@ export class CompilerFacadeImpl implements CompilerFacade {
     };
     const res = compileNgModule(meta);
     return this.jitExpression(res.expression, angularCoreEnv, sourceMapUrl, []);
+  }
+
+  compileNgModuleDeclaration(
+      angularCoreEnv: CoreEnvironment, sourceMapUrl: string,
+      declaration: R3DeclareNgModuleFacade): any {
+    const expression = compileNgModuleDeclarationExpression(declaration);
+    return this.jitExpression(expression, angularCoreEnv, sourceMapUrl, []);
   }
 
   compileDirective(
@@ -191,13 +228,26 @@ export class CompilerFacadeImpl implements CompilerFacade {
       internalType: new WrappedNodeExpr(meta.type),
       typeArgumentCount: meta.typeArgumentCount,
       deps: convertR3DependencyMetadataArray(meta.deps),
-      injectFn: meta.injectFn === 'directiveInject' ? Identifiers.directiveInject :
-                                                      Identifiers.inject,
       target: meta.target,
     });
     return this.jitExpression(
-        factoryRes.factory, angularCoreEnv, sourceMapUrl, factoryRes.statements);
+        factoryRes.expression, angularCoreEnv, sourceMapUrl, factoryRes.statements);
   }
+
+  compileFactoryDeclaration(
+      angularCoreEnv: CoreEnvironment, sourceMapUrl: string, meta: R3DeclareFactoryFacade) {
+    const factoryRes = compileFactoryFunction({
+      name: meta.type.name,
+      type: wrapReference(meta.type),
+      internalType: new WrappedNodeExpr(meta.type),
+      typeArgumentCount: 0,
+      deps: meta.deps && meta.deps.map(convertR3DeclareDependencyMetadata),
+      target: meta.target,
+    });
+    return this.jitExpression(
+        factoryRes.expression, angularCoreEnv, sourceMapUrl, factoryRes.statements);
+  }
+
 
   createParseSourceSpan(kind: string, typeName: string, sourceUrl: string): ParseSourceSpan {
     return r3JitTypeSourceSpan(kind, typeName, sourceUrl);
@@ -238,11 +288,6 @@ const USE_CLASS = Object.keys({useClass: null})[0];
 const USE_FACTORY = Object.keys({useFactory: null})[0];
 const USE_VALUE = Object.keys({useValue: null})[0];
 const USE_EXISTING = Object.keys({useExisting: null})[0];
-
-const wrapReference = function(value: any): R3Reference {
-  const wrapped = new WrappedNodeExpr(value);
-  return {value: wrapped, type: wrapped};
-};
 
 function convertToR3QueryMetadata(facade: R3QueryMetadataFacade): R3QueryMetadata {
   return {
@@ -290,10 +335,11 @@ function convertDirectiveFacadeToMetadata(facade: R3DirectiveMetadataFacade): R3
 
   return {
     ...facade as R3DirectiveMetadataFacadeNoPropAndWhitespace,
+    typeArgumentCount: 0,
     typeSourceSpan: facade.typeSourceSpan,
     type: wrapReference(facade.type),
     internalType: new WrappedNodeExpr(facade.type),
-    deps: convertR3DependencyMetadataArray(facade.deps),
+    deps: null,
     host: extractHostBindings(facade.propMetadata, facade.typeSourceSpan, facade.host),
     inputs: {...inputsFromMetadata, ...inputsFromType},
     outputs: {...outputsFromMetadata, ...outputsFromType},
@@ -361,7 +407,9 @@ function convertDeclareComponentFacadeToMetadata(
     ...convertDeclareDirectiveFacadeToMetadata(declaration, typeSourceSpan),
     template,
     styles: declaration.styles ?? [],
-    directives: (declaration.directives ?? []).map(convertUsedDirectiveDeclarationToMetadata),
+    directives: (declaration.components ?? [])
+                    .concat(declaration.directives ?? [])
+                    .map(convertUsedDirectiveDeclarationToMetadata),
     pipes: convertUsedPipesToMetadata(declaration.pipes),
     viewProviders: declaration.viewProviders !== undefined ?
         new WrappedNodeExpr(declaration.viewProviders) :
@@ -377,8 +425,7 @@ function convertDeclareComponentFacadeToMetadata(
   };
 }
 
-function convertUsedDirectiveDeclarationToMetadata(
-    declaration: NonNullable<R3DeclareComponentFacade['directives']>[number]):
+function convertUsedDirectiveDeclarationToMetadata(declaration: R3DeclareUsedDirectiveFacade):
     R3UsedDirectiveMetadata {
   return {
     selector: declaration.selector,
@@ -422,6 +469,22 @@ function parseJitTemplate(
 type R3DirectiveMetadataFacadeNoPropAndWhitespace =
     Pick<R3DirectiveMetadataFacade, Exclude<keyof R3DirectiveMetadataFacade, 'propMetadata'>>;
 
+/**
+ * Convert the expression, if present to an `R3ProviderExpression`.
+ *
+ * In JIT mode we do not want the compiler to wrap the expression in a `forwardRef()` call because,
+ * if it is referencing a type that has not yet been defined, it will have already been wrapped in
+ * a `forwardRef()` - either by the application developer or during partial-compilation. Thus we can
+ * set `isForwardRef` to `false`.
+ */
+function convertToProviderExpression(obj: any, property: string): R3ProviderExpression|undefined {
+  if (obj.hasOwnProperty(property)) {
+    return createR3ProviderExpression(new WrappedNodeExpr(obj[property]), /* isForwardRef */ false);
+  } else {
+    return undefined;
+  }
+}
+
 function wrapExpression(obj: any, property: string): WrappedNodeExpr<any>|undefined {
   if (obj.hasOwnProperty(property)) {
     return new WrappedNodeExpr(obj[property]);
@@ -430,37 +493,46 @@ function wrapExpression(obj: any, property: string): WrappedNodeExpr<any>|undefi
   }
 }
 
-function computeProvidedIn(providedIn: Type|string|null|undefined): Expression {
-  if (providedIn == null || typeof providedIn === 'string') {
-    return new LiteralExpr(providedIn);
-  } else {
-    return new WrappedNodeExpr(providedIn);
-  }
-}
-
-function convertR3DependencyMetadata(facade: R3DependencyMetadataFacade): R3DependencyMetadata {
-  let tokenExpr;
-  if (facade.token === null) {
-    tokenExpr = new LiteralExpr(null);
-  } else if (facade.resolved === R3ResolvedDependencyType.Attribute) {
-    tokenExpr = new LiteralExpr(facade.token);
-  } else {
-    tokenExpr = new WrappedNodeExpr(facade.token);
-  }
-  return {
-    token: tokenExpr,
-    attribute: null,
-    resolved: facade.resolved,
-    host: facade.host,
-    optional: facade.optional,
-    self: facade.self,
-    skipSelf: facade.skipSelf,
-  };
+function computeProvidedIn(providedIn: Function|string|null|undefined): R3ProviderExpression {
+  const expression = (providedIn == null || typeof providedIn === 'string') ?
+      new LiteralExpr(providedIn ?? null) :
+      new WrappedNodeExpr(providedIn);
+  // See `convertToProviderExpression()` for why `isForwardRef` is false.
+  return createR3ProviderExpression(expression, /* isForwardRef */ false);
 }
 
 function convertR3DependencyMetadataArray(facades: R3DependencyMetadataFacade[]|null|
                                           undefined): R3DependencyMetadata[]|null {
   return facades == null ? null : facades.map(convertR3DependencyMetadata);
+}
+
+function convertR3DependencyMetadata(facade: R3DependencyMetadataFacade): R3DependencyMetadata {
+  const isAttributeDep = facade.attribute != null;  // both `null` and `undefined`
+  const rawToken = facade.token === null ? null : new WrappedNodeExpr(facade.token);
+  // In JIT mode, if the dep is an `@Attribute()` then we use the attribute name given in
+  // `attribute` rather than the `token`.
+  const token = isAttributeDep ? new WrappedNodeExpr(facade.attribute) : rawToken;
+  return createR3DependencyMetadata(
+      token, isAttributeDep, facade.host, facade.optional, facade.self, facade.skipSelf);
+}
+
+function convertR3DeclareDependencyMetadata(facade: R3DeclareDependencyMetadataFacade):
+    R3DependencyMetadata {
+  const isAttributeDep = facade.attribute ?? false;
+  const token = facade.token === null ? null : new WrappedNodeExpr(facade.token);
+  return createR3DependencyMetadata(
+      token, isAttributeDep, facade.host ?? false, facade.optional ?? false, facade.self ?? false,
+      facade.skipSelf ?? false);
+}
+
+function createR3DependencyMetadata(
+    token: WrappedNodeExpr<unknown>|null, isAttributeDep: boolean, host: boolean, optional: boolean,
+    self: boolean, skipSelf: boolean): R3DependencyMetadata {
+  // If the dep is an `@Attribute()` the `attributeNameType` ought to be the `unknown` type.
+  // But types are not available at runtime so we just use a literal `"<unknown>"` string as a dummy
+  // marker.
+  const attributeNameType = isAttributeDep ? literal('unknown') : null;
+  return {token, attributeNameType, host, optional, self, skipSelf};
 }
 
 function extractHostBindings(
@@ -532,6 +604,19 @@ function convertDeclarePipeFacadeToMetadata(declaration: R3DeclarePipeFacade): R
   };
 }
 
+function convertDeclareInjectorFacadeToMetadata(declaration: R3DeclareInjectorFacade):
+    R3InjectorMetadata {
+  return {
+    name: declaration.type.name,
+    type: wrapReference(declaration.type),
+    internalType: new WrappedNodeExpr(declaration.type),
+    providers: declaration.providers !== undefined ? new WrappedNodeExpr(declaration.providers) :
+                                                     null,
+    imports: declaration.imports !== undefined ?
+        declaration.imports.map(i => new WrappedNodeExpr(i)) :
+        [],
+  };
+}
 
 export function publishFacade(global: any) {
   const ng: ExportedCompilerFacade = global.ng || (global.ng = {});

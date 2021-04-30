@@ -2,13 +2,12 @@
 // #docregion
 import { Component } from '@angular/core';
 import { Config, ConfigService } from './config.service';
-import { MessageService } from '../message.service';
 
 @Component({
   selector: 'app-config',
   templateUrl: './config.component.html',
   providers: [ ConfigService ],
-  styles: ['.error {color: red;}']
+  styles: ['.error { color: #b30000; }']
 })
 export class ConfigComponent {
   error: any;
@@ -40,7 +39,8 @@ export class ConfigComponent {
   // #docregion v1
       .subscribe((data: Config) => this.config = {
           heroesUrl: data.heroesUrl,
-          textfile:  data.textfile
+          textfile:  data.textfile,
+          date: data.date,
       });
   }
   // #enddocregion v1
@@ -70,6 +70,10 @@ export class ConfigComponent {
 // #enddocregion showConfigResponse
   makeError() {
     this.configService.makeIntentionalError().subscribe(null, error => this.error = error );
+  }
+
+  getType(val: any): string {
+    return val instanceof Date ? 'date' : Array.isArray(val) ? 'array' : typeof val;
   }
 }
 // #enddocregion

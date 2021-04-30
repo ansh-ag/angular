@@ -112,13 +112,7 @@ export declare interface AsyncValidatorFn {
     (control: AbstractControl): Promise<ValidationErrors | null> | Observable<ValidationErrors | null>;
 }
 
-export declare class CheckboxControlValueAccessor implements ControlValueAccessor {
-    onChange: (_: any) => void;
-    onTouched: () => void;
-    constructor(_renderer: Renderer2, _elementRef: ElementRef);
-    registerOnChange(fn: (_: any) => {}): void;
-    registerOnTouched(fn: () => {}): void;
-    setDisabledState(isDisabled: boolean): void;
+export declare class CheckboxControlValueAccessor extends ɵangular_packages_forms_forms_g implements ControlValueAccessor {
     writeValue(value: any): void;
 }
 
@@ -141,13 +135,8 @@ export declare interface ControlValueAccessor {
     writeValue(obj: any): void;
 }
 
-export declare class DefaultValueAccessor implements ControlValueAccessor {
-    onChange: (_: any) => void;
-    onTouched: () => void;
-    constructor(_renderer: Renderer2, _elementRef: ElementRef, _compositionMode: boolean);
-    registerOnChange(fn: (_: any) => void): void;
-    registerOnTouched(fn: () => void): void;
-    setDisabledState(isDisabled: boolean): void;
+export declare class DefaultValueAccessor extends ɵangular_packages_forms_forms_f implements ControlValueAccessor {
+    constructor(renderer: Renderer2, elementRef: ElementRef, _compositionMode: boolean);
     writeValue(value: any): void;
 }
 
@@ -172,20 +161,30 @@ export declare class FormArray extends AbstractControl {
     get length(): number;
     constructor(controls: AbstractControl[], validatorOrOpts?: ValidatorFn | ValidatorFn[] | AbstractControlOptions | null, asyncValidator?: AsyncValidatorFn | AsyncValidatorFn[] | null);
     at(index: number): AbstractControl;
-    clear(): void;
+    clear(options?: {
+        emitEvent?: boolean;
+    }): void;
     getRawValue(): any[];
-    insert(index: number, control: AbstractControl): void;
+    insert(index: number, control: AbstractControl, options?: {
+        emitEvent?: boolean;
+    }): void;
     patchValue(value: any[], options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
     }): void;
-    push(control: AbstractControl): void;
-    removeAt(index: number): void;
+    push(control: AbstractControl, options?: {
+        emitEvent?: boolean;
+    }): void;
+    removeAt(index: number, options?: {
+        emitEvent?: boolean;
+    }): void;
     reset(value?: any, options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
     }): void;
-    setControl(index: number, control: AbstractControl): void;
+    setControl(index: number, control: AbstractControl, options?: {
+        emitEvent?: boolean;
+    }): void;
     setValue(value: any[], options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
@@ -272,7 +271,9 @@ export declare class FormGroup extends AbstractControl {
     constructor(controls: {
         [key: string]: AbstractControl;
     }, validatorOrOpts?: ValidatorFn | ValidatorFn[] | AbstractControlOptions | null, asyncValidator?: AsyncValidatorFn | AsyncValidatorFn[] | null);
-    addControl(name: string, control: AbstractControl): void;
+    addControl(name: string, control: AbstractControl, options?: {
+        emitEvent?: boolean;
+    }): void;
     contains(controlName: string): boolean;
     getRawValue(): any;
     patchValue(value: {
@@ -282,12 +283,16 @@ export declare class FormGroup extends AbstractControl {
         emitEvent?: boolean;
     }): void;
     registerControl(name: string, control: AbstractControl): AbstractControl;
-    removeControl(name: string): void;
+    removeControl(name: string, options?: {
+        emitEvent?: boolean;
+    }): void;
     reset(value?: any, options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
     }): void;
-    setControl(name: string, control: AbstractControl): void;
+    setControl(name: string, control: AbstractControl, options?: {
+        emitEvent?: boolean;
+    }): void;
     setValue(value: {
         [key: string]: any;
     }, options?: {
@@ -366,11 +371,11 @@ export declare abstract class NgControl extends AbstractControlDirective {
     abstract viewToModelUpdate(newValue: any): void;
 }
 
-export declare class NgControlStatus extends ɵangular_packages_forms_forms_g {
+export declare class NgControlStatus extends ɵangular_packages_forms_forms_i {
     constructor(cd: NgControl);
 }
 
-export declare class NgControlStatusGroup extends ɵangular_packages_forms_forms_g {
+export declare class NgControlStatusGroup extends ɵangular_packages_forms_forms_i {
     constructor(cd: ControlContainer);
 }
 
@@ -438,13 +443,8 @@ export declare class NgSelectOption implements OnDestroy {
     ngOnDestroy(): void;
 }
 
-export declare class NumberValueAccessor implements ControlValueAccessor {
-    onChange: (_: any) => void;
-    onTouched: () => void;
-    constructor(_renderer: Renderer2, _elementRef: ElementRef);
+export declare class NumberValueAccessor extends ɵangular_packages_forms_forms_g implements ControlValueAccessor {
     registerOnChange(fn: (_: number | null) => void): void;
-    registerOnTouched(fn: () => void): void;
-    setDisabledState(isDisabled: boolean): void;
     writeValue(value: number): void;
 }
 
@@ -455,29 +455,21 @@ export declare class PatternValidator implements Validator, OnChanges {
     validate(control: AbstractControl): ValidationErrors | null;
 }
 
-export declare class RadioControlValueAccessor implements ControlValueAccessor, OnDestroy, OnInit {
+export declare class RadioControlValueAccessor extends ɵangular_packages_forms_forms_g implements ControlValueAccessor, OnDestroy, OnInit {
     formControlName: string;
     name: string;
     onChange: () => void;
-    onTouched: () => void;
     value: any;
-    constructor(_renderer: Renderer2, _elementRef: ElementRef, _registry: ɵangular_packages_forms_forms_n, _injector: Injector);
+    constructor(renderer: Renderer2, elementRef: ElementRef, _registry: ɵangular_packages_forms_forms_q, _injector: Injector);
     fireUncheck(value: any): void;
     ngOnDestroy(): void;
     ngOnInit(): void;
     registerOnChange(fn: (_: any) => {}): void;
-    registerOnTouched(fn: () => {}): void;
-    setDisabledState(isDisabled: boolean): void;
     writeValue(value: any): void;
 }
 
-export declare class RangeValueAccessor implements ControlValueAccessor {
-    onChange: (_: any) => void;
-    onTouched: () => void;
-    constructor(_renderer: Renderer2, _elementRef: ElementRef);
+export declare class RangeValueAccessor extends ɵangular_packages_forms_forms_g implements ControlValueAccessor {
     registerOnChange(fn: (_: number | null) => void): void;
-    registerOnTouched(fn: () => void): void;
-    setDisabledState(isDisabled: boolean): void;
     writeValue(value: any): void;
 }
 
@@ -493,27 +485,17 @@ export declare class RequiredValidator implements Validator {
     validate(control: AbstractControl): ValidationErrors | null;
 }
 
-export declare class SelectControlValueAccessor implements ControlValueAccessor {
+export declare class SelectControlValueAccessor extends ɵangular_packages_forms_forms_g implements ControlValueAccessor {
     set compareWith(fn: (o1: any, o2: any) => boolean);
-    onChange: (_: any) => void;
-    onTouched: () => void;
     value: any;
-    constructor(_renderer: Renderer2, _elementRef: ElementRef);
     registerOnChange(fn: (value: any) => any): void;
-    registerOnTouched(fn: () => any): void;
-    setDisabledState(isDisabled: boolean): void;
     writeValue(value: any): void;
 }
 
-export declare class SelectMultipleControlValueAccessor implements ControlValueAccessor {
+export declare class SelectMultipleControlValueAccessor extends ɵangular_packages_forms_forms_g implements ControlValueAccessor {
     set compareWith(fn: (o1: any, o2: any) => boolean);
-    onChange: (_: any) => void;
-    onTouched: () => void;
     value: any;
-    constructor(_renderer: Renderer2, _elementRef: ElementRef);
     registerOnChange(fn: (value: any) => any): void;
-    registerOnTouched(fn: () => any): void;
-    setDisabledState(isDisabled: boolean): void;
     writeValue(value: any): void;
 }
 

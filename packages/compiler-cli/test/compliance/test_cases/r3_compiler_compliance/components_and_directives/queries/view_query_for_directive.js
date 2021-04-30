@@ -1,10 +1,10 @@
-ViewQueryComponent.ɵcmp = $r3$.ɵɵdefineComponent({
+ViewQueryComponent.ɵcmp = /*@__PURE__*/ $r3$.ɵɵdefineComponent({
   type: ViewQueryComponent,
   selectors: [["view-query-component"]],
   viewQuery: function ViewQueryComponent_Query(rf, ctx) {
     if (rf & 1) {
-      $r3$.ɵɵviewQuery(SomeDirective, 1);
-      $r3$.ɵɵviewQuery(SomeDirective, 1);
+      $r3$.ɵɵviewQuery(SomeDirective, 5);
+      $r3$.ɵɵviewQuery(SomeDirective, 5);
     }
     if (rf & 2) {
       let $tmp$;

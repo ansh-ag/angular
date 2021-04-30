@@ -68,9 +68,11 @@ export interface DomAttributeCompletion {
   attribute: string;
 
   /**
-   * Whether this attribute is also a DOM property.
+   * Whether this attribute is also a DOM property. Note that this is required to be `true` because
+   * we only want to provide DOM attributes when there is an Angular syntax associated with them
+   * (`[propertyName]=""`).
    */
-  isAlsoProperty: boolean;
+  isAlsoProperty: true;
 }
 
 /**
@@ -203,7 +205,7 @@ export function buildAttributeCompletionTable(
         continue;
       }
 
-      for (const [propertyName, classPropertyName] of meta.inputs) {
+      for (const [classPropertyName, propertyName] of meta.inputs) {
         if (table.has(propertyName)) {
           continue;
         }
@@ -217,7 +219,7 @@ export function buildAttributeCompletionTable(
         });
       }
 
-      for (const [propertyName, classPropertyName] of meta.outputs) {
+      for (const [classPropertyName, propertyName] of meta.outputs) {
         if (table.has(propertyName)) {
           continue;
         }
@@ -335,17 +337,11 @@ export function buildAttributeCompletionTable(
   if (element instanceof TmplAstElement) {
     for (const {attribute, property} of checker.getPotentialDomBindings(element.name)) {
       const isAlsoProperty = attribute === property;
-      if (!table.has(attribute)) {
+      if (!table.has(attribute) && isAlsoProperty) {
         table.set(attribute, {
           kind: AttributeCompletionKind.DomAttribute,
           attribute,
           isAlsoProperty,
-        });
-      }
-      if (!isAlsoProperty && !table.has(property)) {
-        table.set(property, {
-          kind: AttributeCompletionKind.DomProperty,
-          property,
         });
       }
     }
@@ -448,30 +444,14 @@ export function addAttributeCompletionEntries(
       break;
     }
     case AttributeCompletionKind.DomAttribute: {
-      if (isAttributeContext) {
-        // Offer a completion of an attribute binding.
-        entries.push({
-          kind: unsafeCastDisplayInfoKindToScriptElementKind(DisplayInfoKind.ATTRIBUTE),
-          name: completion.attribute,
-          sortText: completion.attribute,
-          replacementSpan,
-        });
-        if (completion.isAlsoProperty) {
-          // Offer a completion of a property binding to the DOM property.
-          entries.push({
-            kind: unsafeCastDisplayInfoKindToScriptElementKind(DisplayInfoKind.PROPERTY),
-            name: `[${completion.attribute}]`,
-            // In the case of DOM attributes, the property binding should sort after the attribute
-            // binding.
-            sortText: completion.attribute + '_1',
-            replacementSpan,
-          });
-        }
-      } else if (completion.isAlsoProperty) {
+      if (isAttributeContext && completion.isAlsoProperty) {
+        // Offer a completion of a property binding to the DOM property.
         entries.push({
           kind: unsafeCastDisplayInfoKindToScriptElementKind(DisplayInfoKind.PROPERTY),
-          name: completion.attribute,
-          sortText: completion.attribute,
+          name: `[${completion.attribute}]`,
+          // In the case of DOM attributes, the property binding should sort after the attribute
+          // binding.
+          sortText: completion.attribute + '_1',
           replacementSpan,
         });
       }

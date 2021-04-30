@@ -11,7 +11,7 @@ import * as ts from 'typescript';
 
 import {Reference} from '../../imports';
 import {ClassPropertyName} from '../../metadata';
-import {ClassDeclaration} from '../../reflection';
+import {ClassDeclaration, ReflectionHost} from '../../reflection';
 import {TemplateId, TypeCheckableDirectiveMeta, TypeCheckBlockMetadata} from '../api';
 
 import {addExpressionIdentifier, ExpressionIdentifier, markIgnoreDiagnostics} from './comments';
@@ -22,6 +22,36 @@ import {astToTypescript, NULL_AS_ANY} from './expression';
 import {OutOfBandDiagnosticRecorder} from './oob';
 import {ExpressionSemanticVisitor} from './template_semantics';
 import {tsCallMethod, tsCastToAny, tsCreateElement, tsCreateTypeQueryForCoercedInput, tsCreateVariable, tsDeclareVariable} from './ts_util';
+import {requiresInlineTypeCtor} from './type_constructor';
+import {TypeParameterEmitter} from './type_parameter_emitter';
+
+/**
+ * Controls how generics for the component context class will be handled during TCB generation.
+ */
+export enum TcbGenericContextBehavior {
+  /**
+   * References to generic parameter bounds will be emitted via the `TypeParameterEmitter`.
+   *
+   * The caller must verify that all parameter bounds are emittable in order to use this mode.
+   */
+  UseEmitter,
+
+  /**
+   * Generic parameter declarations will be copied directly from the `ts.ClassDeclaration` of the
+   * component class.
+   *
+   * The caller must only use the generated TCB code in a context where such copies will still be
+   * valid, such as an inline type check block.
+   */
+  CopyClassNodes,
+
+  /**
+   * Any generic parameters for the component context class will be set to `any`.
+   *
+   * Produces a less useful type, but is always safe to use.
+   */
+  FallbackToAny,
+}
 
 /**
  * Given a `ts.ClassDeclaration` for a component, and metadata regarding that component, compose a
@@ -44,11 +74,14 @@ import {tsCallMethod, tsCastToAny, tsCreateElement, tsCreateTypeQueryForCoercedI
  * and bindings.
  * @param oobRecorder used to record errors regarding template elements which could not be correctly
  * translated into types during TCB generation.
+ * @param genericContextBehavior controls how generic parameters (especially parameters with generic
+ * bounds) will be referenced from the generated TCB code.
  */
 export function generateTypeCheckBlock(
     env: Environment, ref: Reference<ClassDeclaration<ts.ClassDeclaration>>, name: ts.Identifier,
     meta: TypeCheckBlockMetadata, domSchemaChecker: DomSchemaChecker,
-    oobRecorder: OutOfBandDiagnosticRecorder): ts.FunctionDeclaration {
+    oobRecorder: OutOfBandDiagnosticRecorder,
+    genericContextBehavior: TcbGenericContextBehavior): ts.FunctionDeclaration {
   const tcb = new Context(
       env, domSchemaChecker, oobRecorder, meta.id, meta.boundTarget, meta.pipes, meta.schemas);
   const scope = Scope.forNodes(tcb, null, tcb.boundTarget.target.template !, /* guard */ null);
@@ -57,7 +90,34 @@ export function generateTypeCheckBlock(
     throw new Error(
         `Expected TypeReferenceNode when referencing the ctx param for ${ref.debugName}`);
   }
-  const paramList = [tcbCtxParam(ref.node, ctxRawType.typeName, env.config.useContextGenericType)];
+
+  let typeParameters: ts.TypeParameterDeclaration[]|undefined = undefined;
+  let typeArguments: ts.TypeNode[]|undefined = undefined;
+
+  if (ref.node.typeParameters !== undefined) {
+    if (!env.config.useContextGenericType) {
+      genericContextBehavior = TcbGenericContextBehavior.FallbackToAny;
+    }
+
+    switch (genericContextBehavior) {
+      case TcbGenericContextBehavior.UseEmitter:
+        // Guaranteed to emit type parameters since we checked that the class has them above.
+        typeParameters = new TypeParameterEmitter(ref.node.typeParameters, env.reflector)
+                             .emit(typeRef => env.referenceType(typeRef))!;
+        typeArguments = typeParameters.map(param => ts.factory.createTypeReferenceNode(param.name));
+        break;
+      case TcbGenericContextBehavior.CopyClassNodes:
+        typeParameters = [...ref.node.typeParameters];
+        typeArguments = typeParameters.map(param => ts.factory.createTypeReferenceNode(param.name));
+        break;
+      case TcbGenericContextBehavior.FallbackToAny:
+        typeArguments = ref.node.typeParameters.map(
+            () => ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
+        break;
+    }
+  }
+
+  const paramList = [tcbCtxParam(ref.node, ctxRawType.typeName, typeArguments)];
 
   const scopeStatements = scope.render();
   const innerBody = ts.createBlock([
@@ -73,7 +133,7 @@ export function generateTypeCheckBlock(
       /* modifiers */ undefined,
       /* asteriskToken */ undefined,
       /* name */ name,
-      /* typeParameters */ env.config.useContextGenericType ? ref.node.typeParameters : undefined,
+      /* typeParameters */ env.config.useContextGenericType ? typeParameters : undefined,
       /* parameters */ paramList,
       /* type */ undefined,
       /* body */ body);
@@ -285,11 +345,20 @@ class TcbTemplateBodyOp extends TcbOp {
 
         // The second kind of guard is a template context guard. This guard narrows the template
         // rendering context variable `ctx`.
-        if (dir.hasNgTemplateContextGuard && this.tcb.env.config.applyTemplateContextGuards) {
-          const ctx = this.scope.resolve(this.template);
-          const guardInvoke = tsCallMethod(dirId, 'ngTemplateContextGuard', [dirInstId, ctx]);
-          addParseSpanInfo(guardInvoke, this.template.sourceSpan);
-          directiveGuards.push(guardInvoke);
+        if (dir.hasNgTemplateContextGuard) {
+          if (this.tcb.env.config.applyTemplateContextGuards) {
+            const ctx = this.scope.resolve(this.template);
+            const guardInvoke = tsCallMethod(dirId, 'ngTemplateContextGuard', [dirInstId, ctx]);
+            addParseSpanInfo(guardInvoke, this.template.sourceSpan);
+            directiveGuards.push(guardInvoke);
+          } else if (
+              this.template.variables.length > 0 &&
+              this.tcb.env.config.suggestionsForSuboptimalTypeInference) {
+            // The compiler could have inferred a better type for the variables in this template,
+            // but was prevented from doing so by the type-checking configuration. Issue a warning
+            // diagnostic.
+            this.tcb.oobRecorder.suboptimalTypeInference(this.tcb.id, this.template.variables);
+          }
         }
       }
     }
@@ -357,18 +426,13 @@ class TcbTextInterpolationOp extends TcbOp {
 }
 
 /**
- * A `TcbOp` which constructs an instance of a directive _without_ setting any of its inputs. Inputs
- * are later set in the `TcbDirectiveInputsOp`. Type checking was found to be faster when done in
- * this way as opposed to `TcbDirectiveCtorOp` which is only necessary when the directive is
- * generic.
- *
- * Executing this operation returns a reference to the directive instance variable with its inferred
- * type.
+ * A `TcbOp` which constructs an instance of a directive. For generic directives, generic
+ * parameters are set to `any` type.
  */
-class TcbDirectiveTypeOp extends TcbOp {
+abstract class TcbDirectiveTypeOpBase extends TcbOp {
   constructor(
-      private tcb: Context, private scope: Scope, private node: TmplAstTemplate|TmplAstElement,
-      private dir: TypeCheckableDirectiveMeta) {
+      protected tcb: Context, protected scope: Scope,
+      protected node: TmplAstTemplate|TmplAstElement, protected dir: TypeCheckableDirectiveMeta) {
     super();
   }
 
@@ -380,13 +444,71 @@ class TcbDirectiveTypeOp extends TcbOp {
   }
 
   execute(): ts.Identifier {
-    const id = this.tcb.allocateId();
+    const dirRef = this.dir.ref as Reference<ClassDeclaration<ts.ClassDeclaration>>;
 
-    const type = this.tcb.env.referenceType(this.dir.ref);
+    const rawType = this.tcb.env.referenceType(this.dir.ref);
+
+    let type: ts.TypeNode;
+    if (this.dir.isGeneric === false || dirRef.node.typeParameters === undefined) {
+      type = rawType;
+    } else {
+      if (!ts.isTypeReferenceNode(rawType)) {
+        throw new Error(
+            `Expected TypeReferenceNode when referencing the type for ${this.dir.ref.debugName}`);
+      }
+      const typeArguments = dirRef.node.typeParameters.map(
+          () => ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
+      type = ts.factory.createTypeReferenceNode(rawType.typeName, typeArguments);
+    }
+
+    const id = this.tcb.allocateId();
     addExpressionIdentifier(type, ExpressionIdentifier.DIRECTIVE);
     addParseSpanInfo(type, this.node.startSourceSpan || this.node.sourceSpan);
     this.scope.addStatement(tsDeclareVariable(id, type));
     return id;
+  }
+}
+
+/**
+ * A `TcbOp` which constructs an instance of a non-generic directive _without_ setting any of its
+ * inputs. Inputs  are later set in the `TcbDirectiveInputsOp`. Type checking was found to be
+ * faster when done in this way as opposed to `TcbDirectiveCtorOp` which is only necessary when the
+ * directive is generic.
+ *
+ * Executing this operation returns a reference to the directive instance variable with its inferred
+ * type.
+ */
+class TcbNonGenericDirectiveTypeOp extends TcbDirectiveTypeOpBase {
+  /**
+   * Creates a variable declaration for this op's directive of the argument type. Returns the id of
+   * the newly created variable.
+   */
+  execute(): ts.Identifier {
+    const dirRef = this.dir.ref as Reference<ClassDeclaration<ts.ClassDeclaration>>;
+    if (this.dir.isGeneric) {
+      throw new Error(`Assertion Error: expected ${dirRef.debugName} not to be generic.`);
+    }
+    return super.execute();
+  }
+}
+
+/**
+ * A `TcbOp` which constructs an instance of a generic directive with its generic parameters set
+ * to `any` type. This op is like `TcbDirectiveTypeOp`, except that generic parameters are set to
+ * `any` type. This is used for situations where we want to avoid inlining.
+ *
+ * Executing this operation returns a reference to the directive instance variable with its generic
+ * type parameters set to `any`.
+ */
+class TcbGenericDirectiveTypeWithAnyParamsOp extends TcbDirectiveTypeOpBase {
+  execute(): ts.Identifier {
+    const dirRef = this.dir.ref as Reference<ClassDeclaration<ts.ClassDeclaration>>;
+    if (dirRef.node.typeParameters === undefined) {
+      throw new Error(`Assertion Error: expected typeParameters when creating a declaration for ${
+          dirRef.debugName}`);
+    }
+
+    return super.execute();
   }
 }
 
@@ -1383,8 +1505,27 @@ class Scope {
 
     const dirMap = new Map<TypeCheckableDirectiveMeta, number>();
     for (const dir of directives) {
-      const directiveOp = dir.isGeneric ? new TcbDirectiveCtorOp(this.tcb, this, node, dir) :
-                                          new TcbDirectiveTypeOp(this.tcb, this, node, dir);
+      let directiveOp: TcbOp;
+      const host = this.tcb.env.reflector;
+      const dirRef = dir.ref as Reference<ClassDeclaration<ts.ClassDeclaration>>;
+
+      if (!dir.isGeneric) {
+        // The most common case is that when a directive is not generic, we use the normal
+        // `TcbNonDirectiveTypeOp`.
+        directiveOp = new TcbNonGenericDirectiveTypeOp(this.tcb, this, node, dir);
+      } else if (
+          !requiresInlineTypeCtor(dirRef.node, host) ||
+          this.tcb.env.config.useInlineTypeConstructors) {
+        // For generic directives, we use a type constructor to infer types. If a directive requires
+        // an inline type constructor, then inlining must be available to use the
+        // `TcbDirectiveCtorOp`. If not we, we fallback to using `any` – see below.
+        directiveOp = new TcbDirectiveCtorOp(this.tcb, this, node, dir);
+      } else {
+        // If inlining is not available, then we give up on infering the generic params, and use
+        // `any` type for the directive's generic parameters.
+        directiveOp = new TcbGenericDirectiveTypeWithAnyParamsOp(this.tcb, this, node, dir);
+      }
+
       const dirIndex = this.opQueue.push(directiveOp) - 1;
       dirMap.set(dir, dirIndex);
 
@@ -1489,27 +1630,13 @@ interface TcbBoundInput {
 }
 
 /**
- * Create the `ctx` parameter to the top-level TCB function.
- *
- * This is a parameter with a type equivalent to the component type, with all generic type
- * parameters listed (without their generic bounds).
+ * Create the `ctx` parameter to the top-level TCB function, with the given generic type arguments.
  */
 function tcbCtxParam(
     node: ClassDeclaration<ts.ClassDeclaration>, name: ts.EntityName,
-    useGenericType: boolean): ts.ParameterDeclaration {
-  let typeArguments: ts.TypeNode[]|undefined = undefined;
-  // Check if the component is generic, and pass generic type parameters if so.
-  if (node.typeParameters !== undefined) {
-    if (useGenericType) {
-      typeArguments =
-          node.typeParameters.map(param => ts.createTypeReferenceNode(param.name, undefined));
-    } else {
-      typeArguments =
-          node.typeParameters.map(() => ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
-    }
-  }
-  const type = ts.createTypeReferenceNode(name, typeArguments);
-  return ts.createParameter(
+    typeArguments: ts.TypeNode[]|undefined): ts.ParameterDeclaration {
+  const type = ts.factory.createTypeReferenceNode(name, typeArguments);
+  return ts.factory.createParameterDeclaration(
       /* decorators */ undefined,
       /* modifiers */ undefined,
       /* dotDotDotToken */ undefined,

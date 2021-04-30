@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 import {Statement} from '@angular/compiler';
-import {fromObject, generateMapFileComment, SourceMapConverter} from 'convert-source-map';
+import {fromObject, fromSource, generateMapFileComment, SourceMapConverter} from 'convert-source-map';
 import MagicString from 'magic-string';
 import {encode, SourceMapMappings} from 'sourcemap-codec';
 import * as ts from 'typescript';
@@ -201,19 +201,84 @@ runInEachFileSystem(() => {
         'file': 'file.js',
         'sources': ['file.js'],
         'names': [],
-        'mappings': encode([[], [], [], [], [], [], [], [], [], [], [], [], [[0, 0, 0, 0]]]),
+        'mappings': encode([
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [[0, 0, 0, 0]],
+          [[0, 0, 1, 0]],
+          [[0, 0, 2, 0]],
+          [[0, 0, 3, 0]],
+          [[0, 0, 4, 0]],
+          [[0, 0, 5, 0]],
+          [[0, 0, 6, 0]],
+          [[0, 0, 7, 0]],
+          [[0, 0, 8, 0]]
+        ]),
         'sourcesContent': [JS_CONTENT.contents],
       });
-
-      const MERGED_OUTPUT_PROGRAM_MAPPINGS: SourceMapMappings =
-          [[], [], [], [], [], [], [], [], [], [], [], [], ...JS_CONTENT_MAPPINGS];
 
       MERGED_OUTPUT_PROGRAM_MAP = fromObject({
         'version': 3,
         'file': 'file.js',
         'sources': ['file.ts'],
         'names': [],
-        'mappings': encode(MERGED_OUTPUT_PROGRAM_MAPPINGS),
+        'mappings': encode([
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [
+            [0, 0, 0, 0], [7, 0, 0, 7], [9, 0, 0, 8], [18, 0, 0, 17], [20, 0, 0, 18],
+            [26, 0, 0, 24], [41, 0, 0, 39], [42, 0, 0, 40]
+          ],
+          [
+            [0, 0, 2, 0], [4, 0, 2, 13], [5, 0, 2, 14], [8, 0, 2, 0], [14, 0, 2, 13], [15, 0, 2, 14]
+          ],
+          [[0, 0, 2, 16], [4, 0, 3, 2], [7, 0, 3, 5], [8, 0, 3, 6], [9, 0, 3, 15]],
+          [
+            [0, 0, 3, 27], [7, 0, 3, 34], [8, 0, 3, 35], [9, 0, 3, 36], [10, 0, 3, 37],
+            [11, 0, 3, 38], [1, 0, 4, 1], [2, 0, 4, 1]
+          ],
+          [[0, 0, 2, 13], [1, 0, 2, 14]],
+          [[0, 0, 3, 3]],
+          [
+            [0, 0, 3, 5], [2, 0, 1, 1], [11, 0, 1, 10], [12, 0, 1, 11], [14, 0, 1, 12],
+            [3, 0, 2, 13], [4, 0, 2, 14], [5, 0, 4, 1]
+          ],
+          [
+            [0, 0, 4, 13], [5, 0, 1, 20], [7, 0, 1, 22], [12, 0, 1, 27], [14, 0, 1, 28],
+            [15, 0, 1, 29], [9, 0, 2, 13], [10, 0, 2, 14]
+          ],
+          [[0, 0, 4, 2]],
+          [],
+          [
+            [0, 0, 0, 2], [0, 0, 0, 2], [0, 0, 0, 2], [0, 0, 0, 2], [0, 0, 0, 2], [0, 0, 0, 2],
+            [0, 0, 0, 2], [0, 0, 0, 2], [0, 0, 2, 2], [0, 0, 2, 2], [0, 0, 2, 2], [0, 0, 2, 2],
+            [0, 0, 2, 2], [0, 0, 2, 2], [0, 0, 3, 2], [0, 0, 3, 2], [0, 0, 3, 2], [0, 0, 3, 2],
+            [0, 0, 3, 2], [0, 0, 3, 2], [0, 0, 3, 2], [0, 0, 3, 2], [0, 0, 3, 2], [0, 0, 3, 2],
+            [0, 0, 4, 2], [0, 0, 4, 2], [0, 0, 2, 2], [0, 0, 2, 2], [0, 0, 1, 2], [0, 0, 1, 2],
+            [0, 0, 1, 2], [0, 0, 1, 2], [0, 0, 2, 2], [0, 0, 2, 2], [0, 0, 4, 2], [0, 0, 1, 2],
+            [0, 0, 1, 2], [0, 0, 1, 2], [0, 0, 1, 2], [0, 0, 1, 2], [0, 0, 2, 2], [0, 0, 2, 2]
+          ],
+        ]),
         'sourcesContent': [TS_CONTENT.contents],
       });
     });
@@ -226,8 +291,9 @@ runInEachFileSystem(() => {
            const [sourceFile, mapFile] = renderer.renderProgram(
                decorationAnalyses, switchMarkerAnalyses, privateDeclarationsAnalyses);
            expect(sourceFile.path).toEqual(_('/node_modules/test-package/src/file.js'));
-           expect(sourceFile.contents)
-               .toEqual(RENDERED_CONTENTS + '\n' + OUTPUT_PROGRAM_MAP.toComment());
+           expect(sourceFile.contents).toContain(RENDERED_CONTENTS);
+           expect(fromSource(sourceFile.contents)!.toObject())
+               .toEqual(OUTPUT_PROGRAM_MAP.toObject());
            expect(mapFile).toBeUndefined();
          });
 
@@ -246,7 +312,7 @@ runInEachFileSystem(() => {
         expect(addDefinitionsSpy.calls.first().args[2]).toEqual(`// TRANSPILED
 A.ɵfac = function A_Factory(t) { return new (t || A)(); };
 // TRANSPILED
-A.ɵcmp = ɵngcc0.ɵɵdefineComponent({ type: A, selectors: [["a"]], decls: 1, vars: 1, template: function A_Template(rf, ctx) { if (rf & 1) {
+A.ɵcmp = /*@__PURE__*/ ɵngcc0.ɵɵdefineComponent({ type: A, selectors: [["a"]], decls: 1, vars: 1, template: function A_Template(rf, ctx) { if (rf & 1) {
         ɵngcc0.ɵɵtext(0);
     } if (rf & 2) {
         ɵngcc0.ɵɵtextInterpolate(ctx.person.name);
@@ -300,7 +366,7 @@ A.ɵcmp = ɵngcc0.ɵɵdefineComponent({ type: A, selectors: [["a"]], decls: 1, v
              expect(addDefinitionsSpy.calls.first().args[2]).toEqual(`// TRANSPILED
 A.ɵfac = function A_Factory(t) { return new (t || A)(); };
 // TRANSPILED
-A.ɵdir = ɵngcc0.ɵɵdefineDirective({ type: A, selectors: [["", "a", ""]] });`);
+A.ɵdir = /*@__PURE__*/ ɵngcc0.ɵɵdefineDirective({ type: A, selectors: [["", "a", ""]] });`);
            });
 
         it('should call addAdjacentStatements with the source code, the analyzed class and the rendered statements',
@@ -368,8 +434,8 @@ A.ɵdir = ɵngcc0.ɵɵdefineDirective({ type: A, selectors: [["", "a", ""]] });`
               decorationAnalyses, switchMarkerAnalyses, privateDeclarationsAnalyses);
           const addDefinitionsSpy = testFormatter.addDefinitions as jasmine.Spy;
           const definitions: string = addDefinitionsSpy.calls.first().args[2];
-          expect(definitions).toContain('A.ɵmod = ɵngcc0.ɵɵdefineNgModule(');
-          expect(definitions).toContain('A.ɵinj = ɵngcc0.ɵɵdefineInjector(');
+          expect(definitions).toContain('A.ɵmod = /*@__PURE__*/ ɵngcc0.ɵɵdefineNgModule(');
+          expect(definitions).toContain('A.ɵinj = /*@__PURE__*/ ɵngcc0.ɵɵdefineInjector(');
         });
 
         it('should render adjacent statements', () => {
@@ -569,8 +635,8 @@ A.ɵdir = ɵngcc0.ɵɵdefineDirective({ type: A, selectors: [["", "a", ""]] });`
           expect(addDefinitionsSpy.calls.first().args[2]).toEqual(`// TRANSPILED
 UndecoratedBase.ɵfac = function UndecoratedBase_Factory(t) { return new (t || UndecoratedBase)(); };
 // TRANSPILED
-UndecoratedBase.ɵdir = ɵngcc0.ɵɵdefineDirective({ type: UndecoratedBase, viewQuery: function UndecoratedBase_Query(rf, ctx) { if (rf & 1) {
-        ɵngcc0.ɵɵviewQuery(_c0, 3);
+UndecoratedBase.ɵdir = /*@__PURE__*/ ɵngcc0.ɵɵdefineDirective({ type: UndecoratedBase, viewQuery: function UndecoratedBase_Query(rf, ctx) { if (rf & 1) {
+        ɵngcc0.ɵɵviewQuery(_c0, 7);
     } if (rf & 2) {
         let _t;
         ɵngcc0.ɵɵqueryRefresh(_t = ɵngcc0.ɵɵloadQuery()) && (ctx.test = _t.first);
@@ -616,8 +682,9 @@ UndecoratedBase.ɵdir = ɵngcc0.ɵɵdefineDirective({ type: UndecoratedBase, vie
              const [sourceFile, mapFile] = renderer.renderProgram(
                  decorationAnalyses, switchMarkerAnalyses, privateDeclarationsAnalyses);
              expect(sourceFile.path).toEqual(_('/node_modules/test-package/src/file.js'));
-             expect(sourceFile.contents)
-                 .toEqual(RENDERED_CONTENTS + '\n' + MERGED_OUTPUT_PROGRAM_MAP.toComment());
+             expect(sourceFile.contents).toContain(RENDERED_CONTENTS);
+             expect(fromSource(sourceFile.contents)!.toObject())
+                 .toEqual(MERGED_OUTPUT_PROGRAM_MAP.toObject());
              expect(mapFile).toBeUndefined();
            });
 

@@ -6,9 +6,12 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
+import {initMockFileSystem} from '../../file_system/testing';
 import {tcb, TestDeclaration} from './test_utils';
 
 describe('type check blocks diagnostics', () => {
+  beforeEach(() => initMockFileSystem('Native'));
+
   describe('parse spans', () => {
     it('should annotate unary ops', () => {
       expect(tcbWithSpans('{{ -a }}')).toContain('(-((ctx).a /*4,5*/) /*4,5*/) /*3,5*/');
@@ -116,15 +119,14 @@ describe('type check blocks diagnostics', () => {
     it('should annotate safe property access', () => {
       const TEMPLATE = `{{ a?.b }}`;
       expect(tcbWithSpans(TEMPLATE))
-          .toContain(
-              '((null as any) ? (((ctx).a /*3,4*/) /*3,4*/)!.b /*6,7*/ : undefined) /*3,7*/');
+          .toContain('(null as any ? (((ctx).a /*3,4*/) /*3,4*/)!.b /*6,7*/ : undefined) /*3,7*/');
     });
 
     it('should annotate safe method calls', () => {
       const TEMPLATE = `{{ a?.method(b) }}`;
       expect(tcbWithSpans(TEMPLATE))
           .toContain(
-              '((null as any) ? (((ctx).a /*3,4*/) /*3,4*/)!.method /*6,12*/(((ctx).b /*13,14*/) /*13,14*/) : undefined) /*3,15*/');
+              '(null as any ? (((ctx).a /*3,4*/) /*3,4*/)!.method /*6,12*/(((ctx).b /*13,14*/) /*13,14*/) : undefined) /*3,15*/');
     });
 
     it('should annotate $any casts', () => {
@@ -147,8 +149,9 @@ describe('type check blocks diagnostics', () => {
         pipeName: 'test',
       }];
       const block = tcbWithSpans(TEMPLATE, PIPES);
+      expect(block).toContain('var _pipe1: i0.TestPipe = null!');
       expect(block).toContain(
-          '((null as TestPipe).transform /*7,11*/(((ctx).a /*3,4*/) /*3,4*/, ((ctx).b /*12,13*/) /*12,13*/) /*3,13*/);');
+          '(_pipe1.transform /*7,11*/(((ctx).a /*3,4*/) /*3,4*/, ((ctx).b /*12,13*/) /*12,13*/) /*3,13*/);');
     });
 
     describe('attaching multiple comments for multiple references', () => {

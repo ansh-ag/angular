@@ -11,6 +11,7 @@ import {join} from 'path';
 import * as semver from 'semver';
 
 import {getBranchPushMatcher} from '../../../utils/testing';
+import {_npmPackageInfoCache} from '../../versioning';
 import {ActiveReleaseTrains} from '../../versioning/active-release-trains';
 import * as npm from '../../versioning/npm-publish';
 import {ReleaseTrain} from '../../versioning/release-trains';
@@ -18,7 +19,7 @@ import {ReleaseAction} from '../actions';
 import {actions} from '../actions/index';
 import {changelogPath} from '../constants';
 
-import {getChangelogForVersion, getTestingMocksForReleaseAction, parse, setupReleaseActionForTesting, testTmpDir} from './test-utils';
+import {fakeNpmPackageQueryRequest, getChangelogForVersion, getTestingMocksForReleaseAction, parse, setupReleaseActionForTesting, testTmpDir} from './test-utils';
 
 describe('common release action logic', () => {
   const baseReleaseTrains: ActiveReleaseTrains = {
@@ -37,6 +38,9 @@ describe('common release action logic', () => {
     it('should not modify release train versions and cause invalid other actions', async () => {
       const {releaseConfig, gitClient} = getTestingMocksForReleaseAction();
       const descriptions: string[] = [];
+
+      // Fake the NPM package request as otherwise the test would rely on `npmjs.org`.
+      fakeNpmPackageQueryRequest(releaseConfig.npmPackages[0], {'dist-tags': {}});
 
       for (const actionCtor of actions) {
         if (await actionCtor.isActive(testReleaseTrain)) {

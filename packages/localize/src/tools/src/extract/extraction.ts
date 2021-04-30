@@ -58,9 +58,9 @@ export class MessageExtractor {
         code: false,
         ast: false
       });
-    }
-    if (this.useSourceMaps) {
-      this.updateSourceLocations(filename, sourceCode, messages);
+      if (this.useSourceMaps && messages.length > 0) {
+        this.updateSourceLocations(filename, sourceCode, messages);
+      }
     }
     return messages;
   }
@@ -123,7 +123,7 @@ export class MessageExtractor {
         sourceFile.sources.find(sf => sf?.sourcePath === originalStart.file)!;
     const startPos = originalSourceFile.startOfLinePositions[start.line] + start.column;
     const endPos = originalSourceFile.startOfLinePositions[end.line] + end.column;
-    const text = originalSourceFile.contents.substring(startPos, endPos);
+    const text = originalSourceFile.contents.substring(startPos, endPos).trim();
     return {file: originalStart.file, start, end, text};
   }
 }

@@ -6,14 +6,16 @@
  * found in the LICENSE file at https://angular.io/license
  */
 import {ConstantPool} from '@angular/compiler';
+import {NOOP_PERF_RECORDER} from '@angular/compiler-cli/src/ngtsc/perf';
 import * as ts from 'typescript';
 
 import {ParsedConfiguration} from '../../..';
 import {ComponentDecoratorHandler, DirectiveDecoratorHandler, InjectableDecoratorHandler, NgModuleDecoratorHandler, PipeDecoratorHandler, ReferencesRegistry, ResourceLoader} from '../../../src/ngtsc/annotations';
-import {CycleAnalyzer, ImportGraph} from '../../../src/ngtsc/cycles';
+import {CycleAnalyzer, CycleHandlingStrategy, ImportGraph} from '../../../src/ngtsc/cycles';
 import {isFatalDiagnosticError} from '../../../src/ngtsc/diagnostics';
 import {absoluteFromSourceFile, LogicalFileSystem, ReadonlyFileSystem} from '../../../src/ngtsc/file_system';
-import {AbsoluteModuleStrategy, LocalIdentifierStrategy, LogicalProjectStrategy, ModuleResolver, NOOP_DEFAULT_IMPORT_RECORDER, PrivateExportAliasingHost, Reexport, ReferenceEmitter} from '../../../src/ngtsc/imports';
+import {AbsoluteModuleStrategy, LocalIdentifierStrategy, LogicalProjectStrategy, ModuleResolver, PrivateExportAliasingHost, Reexport, ReferenceEmitter} from '../../../src/ngtsc/imports';
+import {SemanticSymbol} from '../../../src/ngtsc/incremental/semantic_graph';
 import {CompoundMetadataReader, CompoundMetadataRegistry, DtsMetadataReader, InjectableClassRegistry, LocalMetadataRegistry, ResourceRegistry} from '../../../src/ngtsc/metadata';
 import {PartialEvaluator} from '../../../src/ngtsc/partial_evaluator';
 import {LocalModuleScopeRegistry, MetadataDtsModuleScopeResolver, TypeCheckScopeRegistry} from '../../../src/ngtsc/scope';
@@ -38,7 +40,11 @@ import {isWithinPackage, NOOP_DEPENDENCY_TRACKER} from './util';
 class NgccResourceLoader implements ResourceLoader {
   constructor(private fs: ReadonlyFileSystem) {}
   canPreload = false;
+  canPreprocess = false;
   preload(): undefined|Promise<void> {
+    throw new Error('Not implemented.');
+  }
+  preprocessInline(): Promise<string> {
     throw new Error('Not implemented.');
   }
   load(url: string): string {
@@ -88,11 +94,11 @@ export class DecorationAnalyzer {
   fullRegistry = new CompoundMetadataRegistry([this.metaRegistry, this.scopeRegistry]);
   evaluator =
       new PartialEvaluator(this.reflectionHost, this.typeChecker, /* dependencyTracker */ null);
-  importGraph = new ImportGraph(this.moduleResolver);
+  importGraph = new ImportGraph(this.typeChecker, NOOP_PERF_RECORDER);
   cycleAnalyzer = new CycleAnalyzer(this.importGraph);
   injectableRegistry = new InjectableClassRegistry(this.reflectionHost);
   typeCheckScopeRegistry = new TypeCheckScopeRegistry(this.scopeRegistry, this.fullMetaReader);
-  handlers: DecoratorHandler<unknown, unknown, unknown>[] = [
+  handlers: DecoratorHandler<unknown, unknown, SemanticSymbol|null, unknown>[] = [
     new ComponentDecoratorHandler(
         this.reflectionHost, this.evaluator, this.fullRegistry, this.fullMetaReader,
         this.scopeRegistry, this.scopeRegistry, this.typeCheckScopeRegistry, new ResourceRegistry(),
@@ -101,35 +107,41 @@ export class DecorationAnalyzer {
         /* i18nUseExternalIds */ true, this.bundle.enableI18nLegacyMessageIdFormat,
         /* usePoisonedData */ false,
         /* i18nNormalizeLineEndingsInICUs */ false, this.moduleResolver, this.cycleAnalyzer,
-        this.refEmitter, NOOP_DEFAULT_IMPORT_RECORDER, NOOP_DEPENDENCY_TRACKER,
-        this.injectableRegistry, !!this.compilerOptions.annotateForClosureCompiler),
+        CycleHandlingStrategy.UseRemoteScoping, this.refEmitter, NOOP_DEPENDENCY_TRACKER,
+        this.injectableRegistry,
+        /* semanticDepGraphUpdater */ null, !!this.compilerOptions.annotateForClosureCompiler,
+        NOOP_PERF_RECORDER),
+
     // See the note in ngtsc about why this cast is needed.
     // clang-format off
     new DirectiveDecoratorHandler(
         this.reflectionHost, this.evaluator, this.fullRegistry, this.scopeRegistry,
-        this.fullMetaReader, NOOP_DEFAULT_IMPORT_RECORDER, this.injectableRegistry, this.isCore,
+        this.fullMetaReader, this.injectableRegistry, this.isCore,
+        /* semanticDepGraphUpdater */ null,
         !!this.compilerOptions.annotateForClosureCompiler,
         // In ngcc we want to compile undecorated classes with Angular features. As of
         // version 10, undecorated classes that use Angular features are no longer handled
         // in ngtsc, but we want to ensure compatibility in ngcc for outdated libraries that
         // have not migrated to explicit decorators. See: https://hackmd.io/@alx/ryfYYuvzH.
-        /* compileUndecoratedClassesWithAngularFeatures */ true
-    ) as DecoratorHandler<unknown, unknown, unknown>,
+        /* compileUndecoratedClassesWithAngularFeatures */ true,
+        NOOP_PERF_RECORDER
+    ) as DecoratorHandler<unknown, unknown, SemanticSymbol|null,unknown>,
     // clang-format on
     // Pipe handler must be before injectable handler in list so pipe factories are printed
     // before injectable factories (so injectable factories can delegate to them)
     new PipeDecoratorHandler(
         this.reflectionHost, this.evaluator, this.metaRegistry, this.scopeRegistry,
-        NOOP_DEFAULT_IMPORT_RECORDER, this.injectableRegistry, this.isCore),
+        this.injectableRegistry, this.isCore, NOOP_PERF_RECORDER),
     new InjectableDecoratorHandler(
-        this.reflectionHost, NOOP_DEFAULT_IMPORT_RECORDER, this.isCore,
-        /* strictCtorDeps */ false, this.injectableRegistry, /* errorOnDuplicateProv */ false),
+        this.reflectionHost, this.isCore,
+        /* strictCtorDeps */ false, this.injectableRegistry, NOOP_PERF_RECORDER,
+        /* errorOnDuplicateProv */ false),
     new NgModuleDecoratorHandler(
         this.reflectionHost, this.evaluator, this.fullMetaReader, this.fullRegistry,
         this.scopeRegistry, this.referencesRegistry, this.isCore, /* routeAnalyzer */ null,
         this.refEmitter,
-        /* factoryTracker */ null, NOOP_DEFAULT_IMPORT_RECORDER,
-        !!this.compilerOptions.annotateForClosureCompiler, this.injectableRegistry),
+        /* factoryTracker */ null, !!this.compilerOptions.annotateForClosureCompiler,
+        this.injectableRegistry, NOOP_PERF_RECORDER),
   ];
   compiler = new NgccTraitCompiler(this.handlers, this.reflectionHost);
   migrations: Migration[] = [

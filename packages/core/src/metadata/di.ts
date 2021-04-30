@@ -7,7 +7,7 @@
  */
 
 import {InjectionToken} from '../di/injection_token';
-import {Type} from '../interface/type';
+import {ProviderToken} from '../di/provider_token';
 import {makePropDecorator} from '../util/decorators';
 
 /**
@@ -107,9 +107,8 @@ export interface Query {
 }
 
 // Stores the default value of `emitDistinctChangesOnly` when the `emitDistinctChangesOnly` is not
-// explicitly set. This value will be changed to `true` in v12.
-// TODO(misko): switch the default in v12 to `true`. See: packages/compiler/src/core.ts
-export const emitDistinctChangesOnlyDefaultValue = false;
+// explicitly set.
+export const emitDistinctChangesOnlyDefaultValue = true;
 
 
 /**
@@ -146,10 +145,13 @@ export interface ContentChildrenDecorator {
    * **Metadata Properties**:
    *
    * * **selector** - The directive type or the name used for querying.
-   * * **descendants** - True to include all descendants, otherwise include only direct children.
+   * * **descendants** - If `true` include all descendants of the element. If `false` then only
+   * query direct children of the element.
    * * **emitDistinctChangesOnly** - The ` QueryList#changes` observable will emit new values only
-   *   if the QueryList result has changed. The default value will change from `false` to `true` in
-   *   v12. When `false` the `changes` observable might emit even if the QueryList has not changed.
+   *   if the QueryList result has changed. When `false` the `changes` observable might emit even
+   *   if the QueryList has not changed.
+   *   ** Note: *** This config option is **deprecated**, it will be permanently set to `true` and
+   *   removed in future versions of Angular.
    * * **read** - Used to read a different token from the queried elements.
    *
    * @usageNotes
@@ -167,12 +169,12 @@ export interface ContentChildrenDecorator {
    *
    * @Annotation
    */
-  (selector: Type<any>|InjectionToken<unknown>|Function|string, opts?: {
+  (selector: ProviderToken<unknown>|Function|string, opts?: {
     descendants?: boolean,
     emitDistinctChangesOnly?: boolean,
     read?: any,
   }): any;
-  new(selector: Type<any>|InjectionToken<unknown>|Function|string,
+  new(selector: ProviderToken<unknown>|Function|string,
       opts?: {descendants?: boolean, emitDistinctChangesOnly?: boolean, read?: any}): Query;
 }
 
@@ -238,9 +240,8 @@ export interface ContentChildDecorator {
    *
    * @Annotation
    */
-  (selector: Type<any>|InjectionToken<unknown>|Function|string,
-   opts?: {read?: any, static?: boolean}): any;
-  new(selector: Type<any>|InjectionToken<unknown>|Function|string,
+  (selector: ProviderToken<unknown>|Function|string, opts?: {read?: any, static?: boolean}): any;
+  new(selector: ProviderToken<unknown>|Function|string,
       opts?: {read?: any, static?: boolean}): ContentChild;
 }
 
@@ -287,8 +288,10 @@ export interface ViewChildrenDecorator {
    * * **selector** - The directive type or the name used for querying.
    * * **read** - Used to read a different token from the queried elements.
    * * **emitDistinctChangesOnly** - The ` QueryList#changes` observable will emit new values only
-   *   if the QueryList result has changed. The default value will change from `false` to `true` in
-   *   v12. When `false` the `changes` observable might emit even if the QueryList has not changed.
+   *   if the QueryList result has changed. When `false` the `changes` observable might emit even
+   *   if the QueryList has not changed.
+   *   ** Note: *** This config option is **deprecated**, it will be permanently set to `true` and
+   * removed in future versions of Angular.
    *
    * @usageNotes
    *
@@ -300,9 +303,9 @@ export interface ViewChildrenDecorator {
    *
    * @Annotation
    */
-  (selector: Type<any>|InjectionToken<unknown>|Function|string,
+  (selector: ProviderToken<unknown>|Function|string,
    opts?: {read?: any, emitDistinctChangesOnly?: boolean}): any;
-  new(selector: Type<any>|InjectionToken<unknown>|Function|string,
+  new(selector: ProviderToken<unknown>|Function|string,
       opts?: {read?: any, emitDistinctChangesOnly?: boolean}): ViewChildren;
 }
 
@@ -375,9 +378,8 @@ export interface ViewChildDecorator {
    *
    * @Annotation
    */
-  (selector: Type<any>|InjectionToken<unknown>|Function|string,
-   opts?: {read?: any, static?: boolean}): any;
-  new(selector: Type<any>|InjectionToken<unknown>|Function|string,
+  (selector: ProviderToken<unknown>|Function|string, opts?: {read?: any, static?: boolean}): any;
+  new(selector: ProviderToken<unknown>|Function|string,
       opts?: {read?: any, static?: boolean}): ViewChild;
 }
 

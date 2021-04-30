@@ -16,9 +16,11 @@
     "brotli": "<from-root>",
     "chalk": "<from-root>",
     "cli-progress": "<from-root>",
+    "conventional-commits-parser": "<from-root>",
+    "ejs": "<from-root>",
+    "git-raw-commits": "<from-root>",
     "glob": "<from-root>",
     "inquirer": "<from-root>",
-    "inquirer-autocomplete-prompt": "<from-root>",
     "minimatch": "<from-root>",
     "multimatch": "<from-root>",
     "node-fetch": "<from-root>",
@@ -42,6 +44,9 @@
       "optional": true
     },
     "clang-format": {
+      "optional": true
+    },
+    "prettier": {
       "optional": true
     },
     "protractor": {

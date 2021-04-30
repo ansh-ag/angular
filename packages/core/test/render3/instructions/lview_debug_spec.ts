@@ -7,13 +7,13 @@
  */
 
 import {Component, Injectable, ɵɵdefineComponent, ɵɵdefineDirective, ɵɵdirectiveInject, ɵɵProvidersFeature} from '@angular/core/src/core';
-import {getLContext} from '@angular/core/src/render3/context_discovery';
+import {ComponentDef, DirectiveDef} from '@angular/core/src/render3';
+import {readPatchedData} from '@angular/core/src/render3/context_discovery';
 import {ɵɵelement, ɵɵelementEnd, ɵɵelementStart} from '@angular/core/src/render3/instructions/element';
 import {TNodeDebug} from '@angular/core/src/render3/instructions/lview_debug';
 import {createTNode, createTView} from '@angular/core/src/render3/instructions/shared';
-import {MONKEY_PATCH_KEY_NAME} from '@angular/core/src/render3/interfaces/context';
 import {TNodeType} from '@angular/core/src/render3/interfaces/node';
-import {LView, LViewDebug, TView, TViewType} from '@angular/core/src/render3/interfaces/view';
+import {HEADER_OFFSET, LView, LViewDebug, TView, TViewType} from '@angular/core/src/render3/interfaces/view';
 import {enterView, leaveView} from '@angular/core/src/render3/state';
 import {insertTStylingBinding} from '@angular/core/src/render3/styling/style_binding_list';
 import {getComponentLView} from '@angular/core/src/render3/util/discovery_utils';
@@ -227,7 +227,10 @@ describe('lView_debug', () => {
       expect(myCompNode.injector).toEqual({
         bloom: jasmine.anything(),
         cumulativeBloom: jasmine.anything(),
-        providers: [DepA, String, MyComponent.ɵcmp, MyDirective.ɵdir],
+        providers: [
+          DepA, String, MyComponent.ɵcmp as ComponentDef<MyComponent>,
+          MyDirective.ɵdir as DirectiveDef<MyDirective>
+        ],
         viewProviders: [DepB, Number],
         parentInjectorIndex: -1,
       });
@@ -239,7 +242,7 @@ describe('lView_debug', () => {
         cumulativeBloom: jasmine.anything(),
         providers: [MyChild.ɵdir],
         viewProviders: [],
-        parentInjectorIndex: 22,
+        parentInjectorIndex: HEADER_OFFSET + 2,
       });
     });
   });
@@ -275,7 +278,7 @@ describe('lView_debug', () => {
       const parentFixture = TestBed.createComponent(ParentComponent);
       const parentHostElement = parentFixture.nativeElement as HTMLElement;
       const childElement = parentHostElement.querySelector('child')! as HTMLElement;
-      if (!(childElement as any)[MONKEY_PATCH_KEY_NAME]) {
+      if (!readPatchedData(childElement)) {
         // In these browsers:
         //  - Chrome Mobile 72.0.3626 (Android 0.0.0)
         //  - IE 11.0.0 (Windows 8.1.0.0)

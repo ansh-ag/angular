@@ -28,9 +28,8 @@ export const createAttribute =
     makeMetadataFactory<Attribute>('Attribute', (attributeName: string) => ({attributeName}));
 
 // Stores the default value of `emitDistinctChangesOnly` when the `emitDistinctChangesOnly` is not
-// explicitly set. This value will be changed to `true` in v12.
-// TODO(misko): switch the default in v12 to `true`. See: packages/core/src/metadata/di.ts
-export const emitDistinctChangesOnlyDefaultValue = false;
+// explicitly set.
+export const emitDistinctChangesOnlyDefaultValue = true;
 
 
 export interface Query {
@@ -273,6 +272,11 @@ export const enum InjectFlags {
   SkipSelf = 1 << 2,
   /** Inject `defaultValue` instead if token not found. */
   Optional = 1 << 3,
+  /**
+   * This token is being injected into a pipe.
+   * @internal
+   */
+  ForPipe = 1 << 4,
 }
 
 export const enum ArgumentType {

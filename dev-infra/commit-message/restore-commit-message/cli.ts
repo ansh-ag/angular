@@ -8,7 +8,7 @@
 
 import {Arguments, Argv, CommandModule} from 'yargs';
 
-import {CommitMsgSource} from '../commit-message-source';
+import {CommitMsgSource} from './commit-message-source';
 
 import {restoreCommitMessage} from './restore-commit-message';
 
@@ -50,11 +50,11 @@ async function handler({fileEnvVariable, file, source}: Arguments<RestoreCommitM
   }
 
   throw new Error(
-      'No file path and commit message source provide.  Provide values via positional command ' +
+      'No file path and commit message source provide. Provide values via positional command ' +
       'arguments, or via the --file-env-variable flag');
 }
 
-/** yargs command module describing the command.  */
+/** yargs command module describing the command. */
 export const RestoreCommitMessageModule: CommandModule<{}, RestoreCommitMessageOptions> = {
   handler,
   builder,

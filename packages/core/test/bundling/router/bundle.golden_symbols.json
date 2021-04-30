@@ -81,6 +81,9 @@
     "name": "BrowserViewportScroller"
   },
   {
+    "name": "BrowserXhr"
+  },
+  {
     "name": "CIRCULAR"
   },
   {
@@ -232,9 +235,6 @@
   },
   {
     "name": "EMPTY"
-  },
-  {
-    "name": "EMPTY_ARRAY"
   },
   {
     "name": "EMPTY_ARRAY"
@@ -738,6 +738,12 @@
     "name": "SimpleChange"
   },
   {
+    "name": "SimpleInnerSubscriber"
+  },
+  {
+    "name": "SimpleOuterSubscriber"
+  },
+  {
     "name": "SkipSelf"
   },
   {
@@ -778,6 +784,9 @@
   },
   {
     "name": "TQuery_"
+  },
+  {
+    "name": "TRACKED_LVIEWS"
   },
   {
     "name": "TRANSITION_ID"
@@ -925,6 +934,9 @@
   },
   {
     "name": "_testabilityGetter"
+  },
+  {
+    "name": "_wrapInTimeout"
   },
   {
     "name": "absoluteRedirect"
@@ -1198,6 +1210,9 @@
   },
   {
     "name": "equalPath"
+  },
+  {
+    "name": "exactMatchOptions"
   },
   {
     "name": "executeCheckHooks"
@@ -1494,6 +1509,9 @@
     "name": "injectableDefOrInjectorDefFactory"
   },
   {
+    "name": "innerSubscribe"
+  },
+  {
     "name": "insertBloom"
   },
   {
@@ -1581,6 +1599,9 @@
     "name": "isObject"
   },
   {
+    "name": "isObservable"
+  },
+  {
     "name": "isPositive"
   },
   {
@@ -1657,6 +1678,9 @@
   },
   {
     "name": "materializeViewResults"
+  },
+  {
+    "name": "matrixParamsMatch"
   },
   {
     "name": "maybeUnwrapFn"
@@ -1750,6 +1774,12 @@
   },
   {
     "name": "optionsReducer"
+  },
+  {
+    "name": "paramCompareMap"
+  },
+  {
+    "name": "pathCompareMap"
   },
   {
     "name": "pipeFromArray"
@@ -1947,6 +1977,9 @@
     "name": "subscribeToResult"
   },
   {
+    "name": "subsetMatchOptions"
+  },
+  {
     "name": "supportsState"
   },
   {
@@ -1984,6 +2017,9 @@
   },
   {
     "name": "u"
+  },
+  {
+    "name": "uniqueIdCounter"
   },
   {
     "name": "unwrapElementRef"

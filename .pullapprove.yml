@@ -208,8 +208,8 @@ groups:
          - petebacondarwin         # Pete Bacon Darwin
          - pkozlowski-opensource   # Pawel Kozlowski
          - Splaktar                # Michael Prentice
-         - StephenFluin            # Stephen Fluin
          - twerske                 # Emma Twersky
+         - zarend                  # Zach Arend
 
   # =========================================================
   #  Framework: Animations
@@ -293,7 +293,7 @@ groups:
       users:
         - alxhub
         - crisbeto
-        # OOO as of 2020-09-28 - devversion
+        - devversion
 
 
   # =========================================================
@@ -444,7 +444,7 @@ groups:
       - *can-be-global-approved
       - *can-be-global-docs-approved
       - >
-        contains_any_globs(files.exclude("packages/core/schematics/**"), [
+        contains_any_globs(files.exclude("packages/core/schematics/**").exclude("packages/common/http/**"), [
           'packages/common/**',
           'packages/examples/common/**',
           ])
@@ -805,6 +805,7 @@ groups:
       users:
         - kyliau
         - atscott
+        - zarend
 
 
   # =========================================================
@@ -920,13 +921,15 @@ groups:
           'aio/content/examples/getting-started-v0/**',
           'aio/content/examples/getting-started/**',
           'aio/content/start/**',
-          'aio/content/images/guide/start/**'
+          'aio/content/images/guide/start/**',
+          'aio/content/examples/what-is-angular/**',
+          'aio/content/guide/what-is-angular.md'
           ])
     reviewers:
       users:
         - aikidave
         - IgorMinar
-        - StephenFluin
+        - jelbourn
 
 
   # =========================================================
@@ -951,7 +954,6 @@ groups:
         - aikidave
         - IgorMinar
         - mgechev
-        - StephenFluin
 
   # =========================================================
   #  Docs: Observables
@@ -1137,9 +1139,14 @@ groups:
           'aio/src/**',
           'aio/tests/**',
           'aio/tools/**',
+          'aio/content/images/guide/contributors-guide/**',
+          'aio/content/guide/contributors-guide-overview.md',
           'aio/content/guide/docs-style-guide.md',
           'aio/content/examples/docs-style-guide/**',
           'aio/content/images/guide/docs-style-guide/**',
+          'aio/content/guide/reviewing-content.md',
+          'aio/content/guide/updating-content-github-ui.md',
+          'aio/content/guide/updating-search-keywords.md',
           'aio/content/guide/visual-studio-2015.md'
           ])
     reviewers:
@@ -1157,7 +1164,7 @@ groups:
     conditions:
       - *can-be-global-approved
       - >
-        contains_any_globs(files.exclude("CHANGELOG.md").exclude("packages/compiler-cli/**/BUILD.bazel"), [
+        contains_any_globs(files, [
           '*',
           '.circleci/**',
           '.devcontainer/**',
@@ -1194,12 +1201,11 @@ groups:
           'tools/utils/**',
           'tools/yarn/**',
           'tools/*',
-          '**/*.bzl',
-          '**/*.bazel'
+          '**/*.bzl'
           ])
     reviewers:
       users:
-        # OOO as of 2020-09-28 - devversion
+        - devversion
         - filipesilva
         - gkalpak
         - IgorMinar
@@ -1218,11 +1224,11 @@ groups:
       - >
         contains_any_globs(files, [
           'goldens/public-api/**',
-          'CHANGELOG.md',
           'docs/NAMING.md',
           'aio/content/errors/*.md',
           'aio/content/guide/glossary.md',
           'aio/content/guide/styleguide.md',
+          'aio/content/examples/errors/**',
           'aio/content/examples/styleguide/**',
           'aio/content/images/guide/styleguide/*'
           ])
@@ -1235,6 +1241,7 @@ groups:
         - jelbourn
         - petebacondarwin
         - jessicajaniuk
+        - zarend
         # OOO as of 2020-09-28 - pkozlowski-opensource
     reviews:
       request: 4 # Request reviews from four people
@@ -1264,6 +1271,7 @@ groups:
         - jelbourn
         - petebacondarwin
         - jessicajaniuk
+        - zarend
         # OOO as of 2020-09-28 - pkozlowski-opensource
     reviews:
       request: 4 # Request reviews from four people
@@ -1293,6 +1301,7 @@ groups:
         - jelbourn
         - petebacondarwin
         - jessicajaniuk
+        - zarend
         # OOO as of 2020-09-28 - pkozlowski-opensource
 
 

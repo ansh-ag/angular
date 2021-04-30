@@ -51,10 +51,10 @@ A best practice is to run your project locally before you deploy it. To run your
 {@a building}
 ## Building and hosting your application
 
- 1. To build your application for production, use the `build` command with the `prod` flag.
+ 1. To build your application for production, use the `build` command. By default, this command uses the `production` build configuration.
 
     ```sh
-    ng build --prod
+    ng build
     ```
 
     This command creates a `dist` folder in the application root directory with all the files that a hosting service needs for serving your application.
@@ -68,8 +68,6 @@ A best practice is to run your project locally before you deploy it. To run your
 1. Copy the contents of the `dist/my-project-name` folder to your web server.
     Because these files are static, you can host them on any web server capable of serving files; such as `Node.js`, Java, .NET, or any backend such as [Firebase](https://firebase.google.com/docs/hosting), [Google Cloud](https://cloud.google.com/solutions/web-hosting), or [App Engine](https://cloud.google.com/appengine/docs/standard/python/getting-started/hosting-a-static-website).
     For more information, see [Building & Serving](guide/build "Building and Serving Angular Apps") and [Deployment](guide/deployment "Deployment guide").
-
-<hr />
 
 ## What's next
 

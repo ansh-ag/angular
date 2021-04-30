@@ -14,38 +14,21 @@ mat-toolbar.app-toolbar {
   box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.3);
 
   // HOME PAGE OVERRIDE: TOPNAV TOOLBAR
-  aio-shell.page-home & {
+  .page-home & {
     background-color: $blue;
 
     @media (min-width: 481px) {
       &:not(.transitioning) {
         background-color: transparent;
+        box-shadow: none;
+        position: absolute;
         transition: background-color 0.2s linear;
       }
     }
   }
 
-  // MARKETING PAGES OVERRIDE: TOPNAV TOOLBAR AND HAMBURGER
-  aio-shell.page-home &,
-  aio-shell.page-features &,
-  aio-shell.page-events &,
-  aio-shell.page-resources & {
-    box-shadow: none;
-
-    // FIXED TOPNAV TOOLBAR FOR SMALL MOBILE
-    @media (min-width: 481px) {
-      position: absolute;
-    }
-  }
-
   // DOCS PAGES OVERRIDE: HAMBURGER
-  aio-shell.folder-api &,
-  aio-shell.folder-cli &,
-  aio-shell.folder-docs &,
-  aio-shell.folder-guide &,
-  aio-shell.folder-errors &,
-  aio-shell.folder-start &,
-  aio-shell.folder-tutorial & {
+  @include docs-pages($nestParentSelector: true) {
     @media (min-width: $showTopMenuWidth) {
       .hamburger {
         // Hamburger shown on non-marketing pages even on large screens.
@@ -225,7 +208,7 @@ mat-toolbar.app-toolbar {
         color: $mediumgray;
       }
 
-      @include bp(big) {
+      @media (min-width: 1000px) {
         transition: width 0.4s ease-in-out;
 
         &:focus {

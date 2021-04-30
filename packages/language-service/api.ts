@@ -14,6 +14,24 @@
 
 import * as ts from 'typescript';
 
+export interface PluginConfig {
+  /**
+   * If true, return only Angular results. Otherwise, return Angular + TypeScript
+   * results.
+   */
+  angularOnly: boolean;
+  /**
+   * If true, return factory function for Ivy LS during plugin initialization.
+   * Otherwise return factory function for View Engine LS.
+   */
+  ivy: boolean;
+  /**
+   * If true, enable `strictTemplates` in Angular compiler options regardless
+   * of its value in tsconfig.json.
+   */
+  forceStrictTemplates?: true;
+}
+
 export type GetTcbResponse = {
   /**
    * The filename of the SourceFile this typecheck block belongs to.
@@ -31,7 +49,7 @@ export type GetTcbResponse = {
    * code, `selections` is empty.
    */
   selections: ts.TextSpan[],
-}|undefined;
+};
 
 export type GetComponentLocationsForTemplateResponse = ts.DocumentSpan[];
 
@@ -40,6 +58,11 @@ export type GetComponentLocationsForTemplateResponse = ts.DocumentSpan[];
  * whose API surface is a strict superset of TypeScript's language service.
  */
 export interface NgLanguageService extends ts.LanguageService {
-  getTcb(fileName: string, position: number): GetTcbResponse;
+  getTcb(fileName: string, position: number): GetTcbResponse|undefined;
   getComponentLocationsForTemplate(fileName: string): GetComponentLocationsForTemplateResponse;
+}
+
+export function isNgLanguageService(ls: ts.LanguageService|
+                                    NgLanguageService): ls is NgLanguageService {
+  return 'getTcb' in ls;
 }

@@ -102,20 +102,27 @@ aio-code {
     align-items: center;
 
     code {
+      a {
+        color: inherit;
+      }
+
       span {
         @include line-height(24);
       }
 
       ol.linenums {
         margin: 0;
-        font-family: $main-font;
-        color: #B3B6B7;
+        color: lighten($mediumgray, 25%);
 
         li {
           margin: 0;
           font-family: $code-font;
           font-size: 90%;
           @include line-height(24);
+
+          &::marker {
+            color: lighten($mediumgray, 25%);
+          }
         }
       }
 
@@ -156,9 +163,33 @@ aio-code {
 .sidenav-content {
   code {
     a {
-      color: inherit;
+      color: $darkblue;
       font-size: inherit;
       font-weight: inherit;
+    }
+  }
+
+  :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(pre) {
+    > code {
+      background-color: rgba($lightgray, 0.5);
+      border-radius: 4px;
+      color: $deepgray;
+      padding: 0 4px;
+    }
+
+    &:not(a) > code {
+      padding: 4px;
+    }
+  }
+
+  .page-guide-cheatsheet & {
+    td:first-of-type,
+    th {
+      code {
+        background-color: inherit;
+        padding: 0;
+        white-space: pre-wrap;
+      }
     }
   }
 

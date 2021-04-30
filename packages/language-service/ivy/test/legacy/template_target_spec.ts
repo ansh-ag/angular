@@ -35,12 +35,23 @@ function parse(template: string): ParseResult {
       // `ComponentDecoratorHandler._parseTemplate`.
       leadingTriviaChars: [],
       preserveWhitespaces: true,
+      alwaysAttemptHtmlToR3AstConversion: true,
     }),
     position,
   };
 }
 
 describe('getTargetAtPosition for template AST', () => {
+  it('should locate incomplete tag', () => {
+    const {errors, nodes, position} = parse(`<div¦`);
+    expect(errors?.length).toBe(1);
+    expect(errors![0].msg).toContain('Opening tag "div" not terminated.');
+    const {context} = getTargetAtPosition(nodes, position)!;
+    const {node} = context as SingleNodeTarget;
+    expect(isTemplateNode(node!)).toBe(true);
+    expect(node).toBeInstanceOf(t.Element);
+  });
+
   it('should locate element in opening tag', () => {
     const {errors, nodes, position} = parse(`<di¦v></div>`);
     expect(errors).toBe(null);
@@ -536,6 +547,15 @@ describe('getTargetAtPosition for expression AST', () => {
     const {node} = context as SingleNodeTarget;
     expect(isExpressionNode(node!)).toBe(true);
     expect(node).toBeInstanceOf(e.SafeMethodCall);
+  });
+
+  it('should identify when in the argument position in a no-arg method call', () => {
+    const {errors, nodes, position} = parse(`{{ title.toString(¦) }}`);
+    expect(errors).toBe(null);
+    const {context} = getTargetAtPosition(nodes, position)!;
+    expect(context.kind).toEqual(TargetNodeKind.MethodCallExpressionInArgContext);
+    const {node} = context as SingleNodeTarget;
+    expect(node).toBeInstanceOf(e.MethodCall);
   });
 
   it('should locate literal primitive in interpolation', () => {

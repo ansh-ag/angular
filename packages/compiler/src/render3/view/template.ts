@@ -22,7 +22,7 @@ import {LexerRange} from '../../ml_parser/lexer';
 import {isNgContainer as checkIsNgContainer, splitNsName} from '../../ml_parser/tags';
 import {mapLiteral} from '../../output/map_util';
 import * as o from '../../output/output_ast';
-import {ParseError, ParseSourceSpan} from '../../parse_util';
+import {ParseError, ParseSourceFile, ParseSourceSpan} from '../../parse_util';
 import {DomElementSchemaRegistry} from '../../schema/dom_element_schema_registry';
 import {isTrustedTypesSink} from '../../schema/trusted_types_sinks';
 import {CssSelector, SelectorMatcher} from '../../selector';
@@ -39,7 +39,7 @@ import {createLocalizeStatements} from './i18n/localize_utils';
 import {I18nMetaVisitor} from './i18n/meta';
 import {assembleBoundTextPlaceholders, assembleI18nBoundString, declareI18nVariable, getTranslationConstPrefix, hasI18nMeta, I18N_ICU_MAPPING_PREFIX, i18nFormatPlaceholderNames, icuFromI18nMessage, isI18nRootNode, isSingleI18nIcu, placeholdersToParams, TRANSLATION_VAR_PREFIX, wrapI18nPlaceholder} from './i18n/util';
 import {StylingBuilder, StylingInstruction} from './styling_builder';
-import {asLiteral, chainedInstruction, CONTEXT_NAME, getAttrsForDirectiveMatching, getInterpolationArgsLength, IMPLICIT_REFERENCE, invalid, NON_BINDABLE_ATTR, REFERENCE_PREFIX, RENDER_FLAGS, trimTrailingNulls, unsupported} from './util';
+import {asLiteral, chainedInstruction, CONTEXT_NAME, getAttrsForDirectiveMatching, getInterpolationArgsLength, IMPLICIT_REFERENCE, invalid, NON_BINDABLE_ATTR, REFERENCE_PREFIX, RENDER_FLAGS, RESTORED_VIEW_CONTEXT_NAME, trimTrailingNulls, unsupported} from './util';
 
 
 
@@ -83,8 +83,10 @@ export function prepareEventListenerParameters(
       eventAst.handlerSpan, implicitReceiverAccesses, EVENT_BINDING_SCOPE_GLOBALS);
   const statements = [];
   if (scope) {
-    statements.push(...scope.restoreViewStatement());
+    // `variableDeclarations` needs to run first, because
+    // `restoreViewStatement` depends on the result.
     statements.push(...scope.variableDeclarations());
+    statements.unshift(...scope.restoreViewStatement());
   }
   statements.push(...bindingExpr.render3Stmts);
 
@@ -358,8 +360,17 @@ export class TemplateDefinitionBuilder implements t.Visitor<void>, LocalResolver
         (scope: BindingScope, relativeLevel: number) => {
           let rhs: o.Expression;
           if (scope.bindingLevel === retrievalLevel) {
-            // e.g. ctx
-            rhs = o.variable(CONTEXT_NAME);
+            if (scope.isListenerScope() && scope.hasRestoreViewVariable()) {
+              // e.g. restoredCtx.
+              // We have to get the context from a view reference, if one is available, because
+              // the context that was passed in during creation may not be correct anymore.
+              // For more information see: https://github.com/angular/angular/pull/40360.
+              rhs = o.variable(RESTORED_VIEW_CONTEXT_NAME);
+              scope.notifyRestoredViewContextUse();
+            } else {
+              // e.g. ctx
+              rhs = o.variable(CONTEXT_NAME);
+            }
           } else {
             const sharedCtxVar = scope.getSharedContextName(retrievalLevel);
             // e.g. ctx_r0   OR  x(2);
@@ -864,17 +875,17 @@ export class TemplateDefinitionBuilder implements t.Visitor<void>, LocalResolver
       this.i18n.appendTemplate(template.i18n!, templateIndex);
     }
 
-    const tagName = sanitizeIdentifier(template.tagName || '');
-    const contextName = `${this.contextName}${tagName ? '_' + tagName : ''}_${templateIndex}`;
+    const tagNameWithoutNamespace =
+        template.tagName ? splitNsName(template.tagName)[1] : template.tagName;
+    const contextName = `${this.contextName}${
+        template.tagName ? '_' + sanitizeIdentifier(template.tagName) : ''}_${templateIndex}`;
     const templateName = `${contextName}_Template`;
-
     const parameters: o.Expression[] = [
       o.literal(templateIndex),
       o.variable(templateName),
-
       // We don't care about the tag's namespace here, because we infer
       // it based on the parent nodes inside the template instruction.
-      o.literal(template.tagName ? splitNsName(template.tagName)[1] : template.tagName),
+      o.literal(tagNameWithoutNamespace),
     ];
 
     // find directives matching on a given <ng-template> node
@@ -926,7 +937,7 @@ export class TemplateDefinitionBuilder implements t.Visitor<void>, LocalResolver
     this.templatePropertyBindings(templateIndex, template.templateAttrs);
 
     // Only add normal input/output binding instructions on explicit <ng-template> elements.
-    if (template.tagName === NG_TEMPLATE_TAG_NAME) {
+    if (tagNameWithoutNamespace === NG_TEMPLATE_TAG_NAME) {
       const [i18nInputs, inputs] =
           partitionArray<t.BoundAttribute, t.BoundAttribute>(template.inputs, hasI18nMeta);
 
@@ -1658,6 +1669,7 @@ export class BindingScope implements LocalResolver {
   private map = new Map<string, BindingData>();
   private referenceNameIndex = 0;
   private restoreViewVariable: o.ReadVarExpr|null = null;
+  private usesRestoredViewContext = false;
   static createRootScope(): BindingScope {
     return new BindingScope();
   }
@@ -1833,17 +1845,23 @@ export class BindingScope implements LocalResolver {
   }
 
   restoreViewStatement(): o.Statement[] {
-    // restoreView($state$);
-    return this.restoreViewVariable ?
-        [instruction(null, R3.restoreView, [this.restoreViewVariable]).toStmt()] :
-        [];
+    const statements: o.Statement[] = [];
+    if (this.restoreViewVariable) {
+      const restoreCall = instruction(null, R3.restoreView, [this.restoreViewVariable]);
+      // Either `const restoredCtx = restoreView($state$);` or `restoreView($state$);`
+      // depending on whether it is being used.
+      statements.push(
+          this.usesRestoredViewContext ?
+              o.variable(RESTORED_VIEW_CONTEXT_NAME).set(restoreCall).toConstDecl() :
+              restoreCall.toStmt());
+    }
+    return statements;
   }
 
   viewSnapshotStatements(): o.Statement[] {
     // const $state$ = getCurrentView();
-    const getCurrentViewInstruction = instruction(null, R3.getCurrentView, []);
     return this.restoreViewVariable ?
-        [this.restoreViewVariable.set(getCurrentViewInstruction).toConstDecl()] :
+        [this.restoreViewVariable.set(instruction(null, R3.getCurrentView, [])).toConstDecl()] :
         [];
   }
 
@@ -1872,6 +1890,14 @@ export class BindingScope implements LocalResolver {
     while (current.parent) current = current.parent;
     const ref = `${REFERENCE_PREFIX}${current.referenceNameIndex++}`;
     return ref;
+  }
+
+  hasRestoreViewVariable(): boolean {
+    return !!this.restoreViewVariable;
+  }
+
+  notifyRestoredViewContextUse(): void {
+    this.usesRestoredViewContext = true;
   }
 }
 
@@ -2056,6 +2082,7 @@ export interface ParseTemplateOptions {
    * `$localize` message id format and you are not using compile time translation merging.
    */
   enableI18nLegacyMessageIdFormat?: boolean;
+
   /**
    * If this text is stored in an external template (e.g. via `templateUrl`) then we need to decide
    * whether or not to normalize the line-endings (from `\r\n` to `\n`) when processing ICU
@@ -2067,9 +2094,30 @@ export interface ParseTemplateOptions {
   i18nNormalizeLineEndingsInICUs?: boolean;
 
   /**
-   * Whether the template was inline.
+   * Whether to always attempt to convert the parsed HTML AST to an R3 AST, despite HTML or i18n
+   * Meta parse errors.
+   *
+   *
+   * This option is useful in the context of the language service, where we want to get as much
+   * information as possible, despite any errors in the HTML. As an example, a user may be adding
+   * a new tag and expecting autocomplete on that tag. In this scenario, the HTML is in an errored
+   * state, as there is an incomplete open tag. However, we're still able to convert the HTML AST
+   * nodes to R3 AST nodes in order to provide information for the language service.
+   *
+   * Note that even when `true` the HTML parse and i18n errors are still appended to the errors
+   * output, but this is done after converting the HTML AST to R3 AST.
    */
-  isInline?: boolean;
+  alwaysAttemptHtmlToR3AstConversion?: boolean;
+
+  /**
+   * Include HTML Comment nodes in a top-level comments array on the returned R3 AST.
+   *
+   * This option is required by tooling that needs to know the location of comment nodes within the
+   * AST. A concrete example is @angular-eslint which requires this in order to enable
+   * "eslint-disable" comments within HTML templates, which then allows users to turn off specific
+   * rules on a case by case basis, instead of for their whole project within a configuration file.
+   */
+  collectCommentNodes?: boolean;
 }
 
 /**
@@ -2082,28 +2130,27 @@ export interface ParseTemplateOptions {
 export function parseTemplate(
     template: string, templateUrl: string, options: ParseTemplateOptions = {}): ParsedTemplate {
   const {interpolationConfig, preserveWhitespaces, enableI18nLegacyMessageIdFormat} = options;
-  const isInline = options.isInline ?? false;
   const bindingParser = makeBindingParser(interpolationConfig);
   const htmlParser = new HtmlParser();
   const parseResult = htmlParser.parse(
       template, templateUrl,
       {leadingTriviaChars: LEADING_TRIVIA_CHARS, ...options, tokenizeExpansionForms: true});
 
-  if (parseResult.errors && parseResult.errors.length > 0) {
-    // TODO(ayazhafiz): we may not always want to bail out at this point (e.g. in
-    // the context of a language service).
-    return {
+  if (!options.alwaysAttemptHtmlToR3AstConversion && parseResult.errors &&
+      parseResult.errors.length > 0) {
+    const parsedTemplate: ParsedTemplate = {
       interpolationConfig,
       preserveWhitespaces,
-      template,
-      templateUrl,
-      isInline,
       errors: parseResult.errors,
       nodes: [],
       styleUrls: [],
       styles: [],
       ngContentSelectors: []
     };
+    if (options.collectCommentNodes) {
+      parsedTemplate.commentNodes = [];
+    }
+    return parsedTemplate;
   }
 
   let rootNodes: html.Node[] = parseResult.rootNodes;
@@ -2117,19 +2164,21 @@ export function parseTemplate(
       enableI18nLegacyMessageIdFormat);
   const i18nMetaResult = i18nMetaVisitor.visitAllWithErrors(rootNodes);
 
-  if (i18nMetaResult.errors && i18nMetaResult.errors.length > 0) {
-    return {
+  if (!options.alwaysAttemptHtmlToR3AstConversion && i18nMetaResult.errors &&
+      i18nMetaResult.errors.length > 0) {
+    const parsedTemplate: ParsedTemplate = {
       interpolationConfig,
       preserveWhitespaces,
-      template,
-      templateUrl,
-      isInline,
       errors: i18nMetaResult.errors,
       nodes: [],
       styleUrls: [],
       styles: [],
       ngContentSelectors: []
     };
+    if (options.collectCommentNodes) {
+      parsedTemplate.commentNodes = [];
+    }
+    return parsedTemplate;
   }
 
   rootNodes = i18nMetaResult.rootNodes;
@@ -2147,21 +2196,24 @@ export function parseTemplate(
     }
   }
 
-  const {nodes, errors, styleUrls, styles, ngContentSelectors} =
-      htmlAstToRender3Ast(rootNodes, bindingParser);
+  const {nodes, errors, styleUrls, styles, ngContentSelectors, commentNodes} = htmlAstToRender3Ast(
+      rootNodes, bindingParser, {collectCommentNodes: !!options.collectCommentNodes});
+  errors.push(...parseResult.errors, ...i18nMetaResult.errors);
 
-  return {
+  const parsedTemplate: ParsedTemplate = {
     interpolationConfig,
     preserveWhitespaces,
     errors: errors.length > 0 ? errors : null,
-    template,
-    templateUrl,
-    isInline,
     nodes,
     styleUrls,
     styles,
     ngContentSelectors
   };
+
+  if (options.collectCommentNodes) {
+    parsedTemplate.commentNodes = commentNodes;
+  }
+  return parsedTemplate;
 }
 
 const elementRegistry = new DomElementSchemaRegistry();
@@ -2318,29 +2370,6 @@ export interface ParsedTemplate {
    * How to parse interpolation markers.
    */
   interpolationConfig?: InterpolationConfig;
-
-  /**
-   * The string contents of the template, or an expression that represents the string/template
-   * literal as it occurs in the source.
-   *
-   * This is the "logical" template string, after expansion of any escaped characters (for inline
-   * templates). This may differ from the actual template bytes as they appear in the .ts file.
-   */
-  template: string|o.Expression;
-
-  /**
-   * A full path to the file which contains the template.
-   *
-   * This can be either the original .ts file if the template is inline, or the .html file if an
-   * external file was used.
-   */
-  templateUrl: string;
-
-  /**
-   * Whether the template was inline (using `template`) or external (using `templateUrl`).
-   */
-  isInline: boolean;
-
   /**
    * Any errors from parsing the template the first time.
    *
@@ -2367,4 +2396,10 @@ export interface ParsedTemplate {
    * Any ng-content selectors extracted from the template.
    */
   ngContentSelectors: string[];
+
+  /**
+   * Any R3 Comment Nodes extracted from the template when the `collectCommentNodes` parse template
+   * option is enabled.
+   */
+  commentNodes?: t.Comment[];
 }

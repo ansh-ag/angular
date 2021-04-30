@@ -91,7 +91,7 @@ class ApplyRedirects {
         this.expandSegmentGroup(this.ngModule, this.config, rootSegmentGroup, PRIMARY_OUTLET);
     const urlTrees$ = expanded$.pipe(map((rootSegmentGroup: UrlSegmentGroup) => {
       return this.createUrlTree(
-          squashSegmentGroup(rootSegmentGroup), this.urlTree.queryParams, this.urlTree.fragment!);
+          squashSegmentGroup(rootSegmentGroup), this.urlTree.queryParams, this.urlTree.fragment);
     }));
     return urlTrees$.pipe(catchError((e: any) => {
       if (e instanceof AbsoluteRedirect) {
@@ -114,7 +114,7 @@ class ApplyRedirects {
         this.expandSegmentGroup(this.ngModule, this.config, tree.root, PRIMARY_OUTLET);
     const mapped$ = expanded$.pipe(map((rootSegmentGroup: UrlSegmentGroup) => {
       return this.createUrlTree(
-          squashSegmentGroup(rootSegmentGroup), tree.queryParams, tree.fragment!);
+          squashSegmentGroup(rootSegmentGroup), tree.queryParams, tree.fragment);
     }));
     return mapped$.pipe(catchError((e: any): Observable<UrlTree> => {
       if (e instanceof NoMatch) {
@@ -129,7 +129,7 @@ class ApplyRedirects {
     return new Error(`Cannot match any routes. URL Segment: '${e.segmentGroup}'`);
   }
 
-  private createUrlTree(rootCandidate: UrlSegmentGroup, queryParams: Params, fragment: string):
+  private createUrlTree(rootCandidate: UrlSegmentGroup, queryParams: Params, fragment: string|null):
       UrlTree {
     const root = rootCandidate.segments.length > 0 ?
         new UrlSegmentGroup([], {[PRIMARY_OUTLET]: rootCandidate}) :
@@ -280,11 +280,12 @@ class ApplyRedirects {
       segments: UrlSegment[], outlet: string): Observable<UrlSegmentGroup> {
     if (route.path === '**') {
       if (route.loadChildren) {
-        return this.configLoader.load(ngModule.injector, route)
-            .pipe(map((cfg: LoadedRouterConfig) => {
-              route._loadedConfig = cfg;
-              return new UrlSegmentGroup(segments, {});
-            }));
+        const loaded$ = route._loadedConfig ? of(route._loadedConfig) :
+                                              this.configLoader.load(ngModule.injector, route);
+        return loaded$.pipe(map((cfg: LoadedRouterConfig) => {
+          route._loadedConfig = cfg;
+          return new UrlSegmentGroup(segments, {});
+        }));
       }
 
       return of(new UrlSegmentGroup(segments, {}));

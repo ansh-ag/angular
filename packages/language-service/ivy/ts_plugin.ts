@@ -16,7 +16,7 @@ export function create(info: ts.server.PluginCreateInfo): NgLanguageService {
   const {project, languageService: tsLS, config} = info;
   const angularOnly = config?.angularOnly === true;
 
-  const ngLS = new LanguageService(project, tsLS);
+  const ngLS = new LanguageService(project, tsLS, config);
 
   function getSemanticDiagnostics(fileName: string): ts.Diagnostic[] {
     const diagnostics: ts.Diagnostic[] = [];
@@ -130,7 +130,18 @@ export function create(info: ts.server.PluginCreateInfo): NgLanguageService {
     return diagnostics;
   }
 
-  function getTcb(fileName: string, position: number): GetTcbResponse {
+  function getSignatureHelpItems(
+      fileName: string, position: number,
+      options: ts.SignatureHelpItemsOptions): ts.SignatureHelpItems|undefined {
+    if (angularOnly) {
+      return ngLS.getSignatureHelpItems(fileName, position, options);
+    } else {
+      return tsLS.getSignatureHelpItems(fileName, position, options) ??
+          ngLS.getSignatureHelpItems(fileName, position, options);
+    }
+  }
+
+  function getTcb(fileName: string, position: number): GetTcbResponse|undefined {
     return ngLS.getTcb(fileName, position);
   }
 
@@ -157,6 +168,7 @@ export function create(info: ts.server.PluginCreateInfo): NgLanguageService {
     getTcb,
     getCompilerOptionsDiagnostics,
     getComponentLocationsForTemplate,
+    getSignatureHelpItems,
   };
 }
 

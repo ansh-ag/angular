@@ -28,7 +28,7 @@ mat-sidenav-container.sidenav-container {
     background-color: $superlightgray;
     border-right: 1px solid $lightgray;
 
-    &.collapsed {
+    @media (max-width: 599px) {
       top: 56px;
     }
 
@@ -36,20 +36,6 @@ mat-sidenav-container.sidenav-container {
     .doc-version {
       padding: 8px;
       border-top: 1px solid $lightgray;
-
-      select {
-        outline: none;
-        width: 100%;
-        background: rgba($lightgray, 0.5);
-        height: 32px;
-        border: 1px solid $lightgray;
-        color: $darkgray;
-
-        option {
-          font-family: $main-font;
-          @include font-size(14);
-        }
-      }
     }
   }
 }
@@ -145,7 +131,6 @@ aio-nav-menu {
     }
 
     .level-1 {
-      font-family: $main-font;
       @include font-size(16);
       @include line-height(28);
       font-weight: 400;
@@ -155,7 +140,6 @@ aio-nav-menu {
     }
 
     .level-2 {
-      font-family: $main-font;
       @include font-size(14);
       @include line-height(24);
       font-weight: 400;
@@ -164,7 +148,6 @@ aio-nav-menu {
     }
 
     .level-3 {
-      font-family: $main-font;
       @include font-size(14);
       @include line-height(24);
       margin: 0;
@@ -172,7 +155,6 @@ aio-nav-menu {
     }
 
     .level-4 {
-      font-family: $main-font;
       @include font-size(14);
       @include line-height(24);
       margin: 0;
