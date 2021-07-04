@@ -123,13 +123,11 @@ export class ApplicationInitStatus {
     if (this.appInits) {
       for (let i = 0; i < this.appInits.length; i++) {
         const initResult = this.appInits[i]();
+        
         if (isPromise(initResult)) {
           asyncInitPromises.push(initResult);
         } else if (isObservable(initResult)) {
-          const observableAsPromise = new Promise<void>((resolve, reject) => {
-            initResult.subscribe({complete: resolve, error: reject});
-          });
-          asyncInitPromises.push(observableAsPromise);
+          asyncInitPromises.push(initResult.toPromise());
         }
       }
     }
